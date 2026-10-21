@@ -84,14 +84,16 @@ const duel = (specA: string, specB: string, mode: PlayMode, n: number) => {
 };
 
 // Hanya berjalan bila PAIRS diisi, agar tidak ikut `pnpm test:stress` biasa.
-it.skipIf(!process.env.PAIRS)("kalibrasi", async () => {
-  const pairs = (process.env.PAIRS ?? "")
-    .split(",")
-    .map((p) => p.split(":"));
-  for (const mode of (process.env.MODES ?? "swing").split(",") as PlayMode[]) {
-    for (const [a, b] of pairs) {
-      console.log(duel(a!, b!, mode, Number(process.env.N ?? 40)));
-      await new Promise((r) => setTimeout(r, 0));
+it.skipIf(!process.env.PAIRS)(
+  "kalibrasi",
+  async () => {
+    const pairs = (process.env.PAIRS ?? "").split(",").map((p) => p.split(":"));
+    for (const mode of (process.env.MODES ?? "swing").split(",") as PlayMode[]) {
+      for (const [a, b] of pairs) {
+        console.log(duel(a!, b!, mode, Number(process.env.N ?? 40)));
+        await new Promise((r) => setTimeout(r, 0));
+      }
     }
-  }
-}, 1_800_000);
+  },
+  1_800_000,
+);
