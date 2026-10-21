@@ -12,18 +12,19 @@
 | Jaringan | Playwright + throttling / proxy latensi | RTT 150 ms, loss 2%, putus-sambung |
 
 CI (`pnpm check`) wajib hijau sebelum merge: typecheck, lint (Biome), unit,
-integrasi worker, budget ukuran bundle. E2E jalan di setiap PR ke `production`
-dan setiap malam di `development`.
+integrasi worker, budget ukuran bundle. E2E (frontend + `wrangler dev` lokal)
+jalan di setiap PR ke `production` dan setiap malam di `development`.
 
 ## 2. Unit test wajib (`packages/sim`)
 
 - Skor: 11 poin, deuce 10–10 sampai selisih 2, rotasi servis tiap 2 poin dan
-  tiap 1 poin saat deuce, best of 3/5.
+  tiap 1 poin saat deuce, best of 1/3/5, volley dan pantulan ganda = poin lawan.
 - Servis: harus memantul di sisi sendiri lalu sisi lawan; let saat menyentuh net.
 - Fisika: pantulan meja mengubah spin sesuai arah; bola out terdeteksi; determinisme
   (dua simulasi dengan input sama → state identik setelah 10.000 tick).
-- Timing: batas tepat tiap jendela (±50/±100/±160/±250 ms), tap ganda hanya
-  dihitung sekali, offset kalibrasi diterapkan, combo → Fever.
+- Timing: batas tepat tiap jendela (±50/±100/±160/±250 ms), hanya tap pertama
+  yang dihitung, tap > 250 ms terlalu awal = MISS, offset kalibrasi diterapkan,
+  combo → Fever.
 - AI: parameter tiap tingkat dipakai; AI tidak pernah bergerak melebihi kecepatan maks.
 - Nickname: panjang, karakter yang diizinkan, filter kata kasar, akhiran `#2`.
 
@@ -32,9 +33,9 @@ dan setiap malam di `development`.
 | # | Skenario | Catatan teknis |
 |---|----------|----------------|
 | E1 | Pertama kali masuk → isi nickname → tersimpan setelah reload | Cek `localStorage` |
-| E2 | Vs AI Mudah sampai game selesai | Mode test: hook `?seed=` + percepat waktu agar test < 30 detik |
+| E2 | Vs AI Mudah sampai game selesai | Hook test (`?seed=`, percepat waktu) hanya ada di build test, tidak ikut build produksi |
 | E3 | Ganti 3 POV saat bermain | Screenshot per POV |
-| E4 | Lokal 2 pemain: input keyboard dua sisi | |
+| E4 | Lokal 2 pemain: input keyboard dua sisi | Viewport desktop saja |
 | E5 | Online 1v1: dua browser context, buat room → join lewat link → main 1 poin | Worker lokal (`wrangler dev`) |
 | E6 | Online: putuskan satu context → sambung ulang < 30 detik → lanjut | `context.setOffline` |
 | E7 | Timing Smash: tap tepat pada waktu ideal → PERFECT; telat 200 ms → LATE; tidak tap → MISS | Waktu disimulasikan lewat jam test, bukan `sleep` |
@@ -46,8 +47,10 @@ Viewport: 390×844 (HP), 1440×900 (desktop). Browser: Chromium, WebKit, Firefox
 
 ## 4. Budget performa (gagal CI jika dilanggar)
 
-- JS awal ≤ 150 kB gzip; chunk game ≤ 200 kB gzip.
-- Font ≤ 60 kB, sprite karakter ≤ 120 kB, suara ≤ 80 kB.
+- JS awal (menu) ≤ 150 kB gzip; chunk game ≤ 200 kB gzip.
+- Font ≤ 80 kB, sprite karakter ≤ 120 kB (satu atlas, warna lewat recolor).
+- Total unduhan sampai servis pertama ≤ 550 kB (JS + font + sprite). Efek suara
+  (≤ 80 kB) dimuat setelah interaksi pertama dan tidak dihitung di sini.
 - Lighthouse mobile: Performance ≥ 90, Accessibility ≥ 95, Best Practices ≥ 95.
 - FPS rata-rata ≥ 55 di emulasi CPU 4× lebih lambat selama 30 detik reli bot vs bot.
 

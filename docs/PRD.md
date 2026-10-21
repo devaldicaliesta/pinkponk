@@ -48,7 +48,7 @@ berjalan di Cloudflare tanpa database.
   supaya rasa permainan wajar).
 - Gaya: gravitasi, hambatan udara sederhana, efek Magnus dari spin.
 - Pantulan meja dan bat memakai koefisien restitusi + gesekan yang mengubah spin.
-- Bola menyentuh net: jika lewat dan sah → lanjut; saat servis → *let* (diulang).
+- Bola menyentuh net lalu masuk: saat reli → lanjut; saat servis → *let* (diulang).
 - Simulasi deterministik: input yang sama menghasilkan hasil yang sama
   (dibutuhkan untuk netcode, replay, dan test).
 
@@ -59,7 +59,9 @@ berjalan di Cloudflare tanpa database.
   - kecepatan bola (dibatasi maksimum),
   - spin: gerakan ke atas → topspin, ke bawah → backspin, menyamping → sidespin.
 - Sudut bat otomatis (assist) supaya pemain HP tidak perlu mengatur kemiringan.
-- Keyboard: panah/WASD untuk posisi, Spasi untuk ayunan, Shift + arah untuk spin.
+- Keyboard (1 pemain): panah/WASD untuk posisi, Spasi untuk ayunan, Shift + arah untuk spin.
+- Keyboard (Lokal 2 pemain): P1 WASD + Spasi + Shift kiri; P2 panah + Enter + Shift kanan
+  (dibedakan lewat `KeyboardEvent.code`).
 - Gamepad (opsional): stik kiri posisi, tombol untuk ayunan + spin.
 
 ### 6.3 Servis
@@ -74,8 +76,9 @@ berjalan di Cloudflare tanpa database.
 - Servis bergantian setiap 2 poin, dan setiap 1 poin saat deuce.
 - Pertandingan best of 1 / 3 / 5 (default 3).
 - Pemain bertukar sisi di antara game (secara visual kamera tetap dari sisi pemain).
-- Poin hilang jika: bola tidak masuk meja lawan, memantul dua kali di sisi sendiri,
-  menyentuh sisi sendiri sebelum dikembalikan (volley tidak sah), atau servis gagal.
+- Poin hilang jika: gagal mengembalikan bola, pukulan tidak masuk meja lawan, bola
+  memantul dua kali di sisi sendiri, memukul bola sebelum memantul di sisi sendiri
+  (volley), atau servis gagal.
 
 ## 7. Mode main
 
@@ -101,8 +104,8 @@ Nilai di atas adalah angka awal untuk di-tuning lewat playtest.
 
 ### 7.2 Online 1v1
 
-- Room: kode acak 6 karakter (alfabet tanpa huruf ambigu, misalnya tanpa O/0/I/1)
-  + link `pinkponk.my.id/r/KODE`.
+- Room: kode acak 6 karakter dari 31 simbol (A–Z tanpa I, L, O + angka 2–9, supaya
+  tidak tertukar saat diketik) + link `pinkponk.my.id/r/KODE`.
 - Server (Durable Object per room) menjalankan simulasi resmi; client mengirim input saja.
 - Client memakai prediksi untuk bat sendiri dan interpolasi untuk bola/lawan.
 - Indikator ping (hijau < 80 ms, kuning < 150 ms, merah ≥ 150 ms).
@@ -125,10 +128,12 @@ Selisih = waktu tap − waktu ideal (bola tepat di titik pukul).
 | **PERFECT** | ≤ ±50 ms | **SMASH**: bola sangat cepat dan menukik, hit-stop 60 ms + slow-mo singkat |
 | **GREAT** | ≤ ±100 ms | Drive kuat; arah ditentukan posisi tap (kiri/tengah/kanan) |
 | **GOOD** | ≤ ±160 ms | Pukulan aman (lob), mudah diserang balik |
-| **EARLY / LATE** | ≤ ±250 ms | Pukulan lemah; peluang 40% nyangkut net atau out |
+| **EARLY / LATE** | ≤ ±250 ms | Pukulan lemah; peluang 40% nyangkut net atau out (diundi dengan PRNG ber-seed agar tetap deterministik) |
 | **MISS** | tidak tap / di luar ±250 ms | Kehilangan poin |
 
-- Tap lebih dari satu kali dalam satu jendela: hanya tap pertama yang dihitung.
+- Penilaian dimulai saat bola melewati net ke sisi pemain; hanya tap pertama
+  setelah itu yang dihitung, termasuk tap yang terlalu awal (> 250 ms sebelum
+  waktu ideal → MISS). Ini mencegah strategi tap berulang-ulang.
 - **Hold → lepas** (v1.1): menahan lalu melepas di jendela PERFECT/GREAT
   menambahkan spin.
 - **Combo:** 3 PERFECT beruntun → **Fever** selama 8 detik: smash lebih kuat
@@ -169,7 +174,8 @@ Selisih = waktu tap − waktu ideal (bola tepat di titik pukul).
    kedua karakter terlihat penuh (default desktop).
 
 Pilihan terakhir disimpan di perangkat. Saat *reduced motion* aktif, POV Siaran
-TV tidak bergerak mengikuti bola.
+TV tidak bergerak mengikuti bola. Mode Lokal 2 pemain hanya memakai POV Klasik
+dan Siaran TV, karena POV orang pertama hanya bisa untuk satu pemain.
 
 ## 11. Karakter
 
@@ -194,10 +200,10 @@ TV tidak bergerak mengikuti bola.
 |-------|-----------|
 | Tutorial singkat (ayunan + timing), bisa dilewati | MVP |
 | Hitung mundur 3-2-1 sebelum servis pertama | MVP |
-| Pause (offline), Rematch, kembali ke menu | MVP |
-| Suara + getaran (haptic) dengan sakelar masing-masing | MVP |
+| Pause (semua mode kecuali online), Rematch, kembali ke menu | MVP |
+| Efek suara + getaran (haptic, hanya di perangkat yang mendukung; iOS Safari tidak) dengan sakelar masing-masing | MVP |
 | Pengaturan grafis: Otomatis / Tinggi / Rendah | MVP |
-| PWA: bisa dipasang ke layar utama, Vs AI dan Timing Smash bisa offline | MVP |
+| PWA: bisa dipasang ke layar utama; Vs AI, Timing Smash vs AI, dan Lokal bisa offline | MVP |
 | Bahasa Indonesia + Inggris | MVP |
 | Reaksi emoji cepat (6 pilihan tetap) di online | v1.1 |
 | Mode penonton | v1.1 |
@@ -221,7 +227,7 @@ TV tidak bergerak mengikuti bola.
 
 | Area | Target |
 |------|--------|
-| Ukuran | JS awal ≤ 150 kB gzip; total sebelum bisa main ≤ 400 kB |
+| Ukuran | JS awal (menu) ≤ 150 kB gzip; total unduhan sampai servis pertama ≤ 550 kB (rincian di `QA.md` §4) |
 | Frame rate | 60 fps di HP kelas menengah (acuan: Android ~Rp2–3 juta, 2023) |
 | Latensi input | Input → perubahan visual < 50 ms |
 | Lighthouse mobile | Performance ≥ 90, Accessibility ≥ 95 |
@@ -230,7 +236,10 @@ TV tidak bergerak mengikuti bola.
 
 ## 16. Metrik sukses (tanpa DB)
 
-Diukur lewat Cloudflare Web Analytics (tanpa cookie) dan log Worker yang diagregasi:
+Kunjungan diukur dengan Cloudflare Web Analytics (tanpa cookie). Kejadian game
+(mulai pertandingan, room selesai, error JS) dikirim lewat `POST /api/event` ke
+Workers Analytics Engine: hanya hitungan anonim (jenis kejadian, mode, tanggal),
+tanpa nickname atau IP. Ini data agregat untuk metrik, bukan database aplikasi.
 
 - Persentase kunjungan yang memulai pertandingan (target ≥ 60%).
 - Persentase room online yang berakhir dengan pertandingan selesai (target ≥ 70%).

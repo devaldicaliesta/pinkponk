@@ -13,7 +13,8 @@ Browser (HP/desktop)
 Cloudflare Worker (satu Worker)
   ├─ Static Assets (hasil build frontend)
   ├─ GET /ws/room/:code  → upgrade ke Durable Object
-  └─ POST /api/room      → buat kode room
+  ├─ POST /api/room      → buat kode room
+  └─ POST /api/event     → hitungan anonim ke Workers Analytics Engine (metrik)
           ▼
 Durable Object "Room" (satu instance per room)
   └─ menjalankan paket `sim` yang sama dengan client (server-authoritative)
@@ -29,7 +30,12 @@ saat room kosong. Data pemain (nickname, pengaturan, statistik) ada di
 
 - Frontend, API, dan WebSocket satu origin → CSP sederhana, tanpa CORS.
 - Satu kali deploy per environment; Durable Object harus di Worker juga.
-- Preview per branch tetap bisa lewat Worker versions/preview URL.
+- Konfigurasi assets: `run_worker_first = ["/ws/*", "/api/*"]` agar rute itu tidak
+  dilayani sebagai file statis, dan `not_found_handling = "single-page-application"`
+  agar link `/r/KODE` membuka aplikasi.
+- Konsekuensi: Cloudflare tidak membuat preview URL untuk Worker yang memiliki
+  Durable Object. Karena itu tidak ada deploy per PR; PR diuji dengan `wrangler dev`
+  di CI, dan `dev.pinkponk.my.id` berperan sebagai staging.
 - Alternatif Pages + Worker dipertimbangkan, ditolak karena menambah konfigurasi
   route dan dua pipeline deploy.
 
@@ -43,7 +49,9 @@ saat room kosong. Data pemain (nickname, pengaturan, statistik) ada di
 ### 2.3 Renderer: Three.js modular
 
 - Dibutuhkan untuk 3 POV kamera dan meja 3D sederhana.
-- Impor per modul (tree-shaking) → target ≤ 110 kB gzip untuk bagian Three.js.
+- Impor per modul (tree-shaking) → perkiraan 120–140 kB gzip untuk bagian Three.js
+  (WebGLRenderer menarik sebagian besar inti). Diukur di tahap Fondasi; bila melebihi
+  budget chunk game, pertimbangkan renderer WebGL ringan (misalnya OGL).
 - Karakter sebagai sprite billboard (bukan model 3D) → ringan dan sesuai gaya flat.
 - Alternatif: renderer Canvas 2D buatan sendiri (lebih kecil) — ditolak karena
   POV orang pertama dan Siaran TV butuh proyeksi 3D yang benar.
@@ -57,7 +65,9 @@ saat room kosong. Data pemain (nickname, pengaturan, statistik) ada di
 
 ### 2.5 Netcode
 
-- Client mengirim **input** (posisi bat, ayunan, tap) dengan nomor tick.
+- Client mengirim **input** (posisi bat, ayunan, tap) dengan nomor tick, dikumpulkan
+  dan dikirim 30 kali/detik (satu pesan berisi input beberapa tick) untuk menekan
+  jumlah pesan masuk yang ditagih.
 - Server mensimulasikan 120 Hz, mengirim snapshot 30 Hz (delta + kuantisasi,
   format biner kecil).
 - Client: prediksi bat sendiri, interpolasi bola/lawan dengan buffer ~100 ms,
@@ -87,7 +97,7 @@ docs/               PRD, desain, arsitektur, QA, security, deploy
 
 | Paket | Alasan | Perkiraan ukuran |
 |-------|--------|------------------|
-| `three` | Render 3D + kamera POV | ≤ 110 kB gzip (modular) |
+| `three` | Render 3D + kamera POV | ~120–140 kB gzip (modular, lazy) |
 | `preact`, `@preact/signals` | UI menu ringan | ~6 kB |
 | `zod` (hanya di worker) | Validasi pesan masuk | tidak masuk bundle client |
 | `vite`, `typescript`, `vitest`, `@playwright/test`, `@biomejs/biome` | Build, test, lint | dev saja |
@@ -103,13 +113,20 @@ Setiap dependency baru di luar daftar ini wajib dijelaskan di PR.
 | Lokal | — | `localhost:5173` (frontend), `wrangler dev` (worker) |
 | Development | `development` | `https://dev.pinkponk.my.id` |
 | Produksi | `production` | `https://pinkponk.my.id` |
-| Preview PR | PR ke `development` | URL preview Workers |
+| PR | PR ke `development` | tidak di-deploy; diuji dengan `wrangler dev` di CI |
 
 ## 6. Batas dan biaya Cloudflare (perkiraan)
 
-- Workers Free: 100.000 request/hari; Durable Object (SQLite-backed) tersedia di
-  paket Free dengan kuota harian. Cukup untuk tahap awal; dipantau lewat dashboard.
-- Pesan WebSocket dihitung sebagai request oleh Durable Object → snapshot 30 Hz
-  dikirim dalam satu pesan per tick untuk kedua pemain, dan Hibernation dipakai
-  saat room diam.
-- Jika kuota mendekati batas: naikkan ke Workers Paid ($5/bulan) — keputusan pemilik.
+Angka di bawah perlu dicek ulang di halaman pricing Cloudflare saat implementasi.
+
+- Workers Free: ±100.000 request/hari. Durable Object (SQLite-backed) tersedia di
+  paket Free dengan kuota request dan durasi (GB-detik) harian.
+- Pesan WebSocket **masuk** ditagih sebagai request dengan rasio 20 pesan = 1 request;
+  pesan keluar (snapshot) tidak ditagih per pesan.
+- Perkiraan satu pertandingan online 10 menit: 2 pemain × 30 pesan/detik × 600 detik
+  = 36.000 pesan ≈ 1.800 request, ditambah durasi Durable Object selama room aktif
+  (room tidak bisa hibernate selama simulasi berjalan).
+- Artinya paket Free cukup untuk pengembangan dan uji coba (puluhan pertandingan
+  online per hari), tetapi untuk publik perlu Workers Paid ($5/bulan) — keputusan
+  pemilik. Mode offline (Vs AI, Timing vs AI, Lokal) tidak memakai kuota ini.
+- Hibernation dipakai saat room menunggu pemain atau sedang di layar hasil.

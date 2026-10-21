@@ -8,7 +8,8 @@
 - Kredensial deploy (API token Cloudflare) dan domain `pinkponk.my.id`.
 
 Tidak ada data pribadi yang disimpan di server; nickname hanya hidup di memori
-room selama pertandingan.
+room selama pertandingan. Log Worker dan Analytics Engine tidak boleh memuat
+nickname, IP, atau isi pesan.
 
 ## 2. Threat model dan mitigasi
 
@@ -18,8 +19,10 @@ room selama pertandingan.
 | Cheat: client mengirim posisi/hasil palsu | Server-authoritative: client hanya mengirim input; server membatasi kecepatan bat dan ayunan, menilai timing sendiri |
 | Cheat: memalsukan cap waktu tap | Cap waktu dibatasi oleh RTT terukur dan offset jam; tap di luar ±RTT/2 dari waktu terima ditolak |
 | Menebak kode room | Kode 6 karakter dari 31 simbol (~887 juta kombinasi) + rate limit pembuatan/join per IP |
-| Spam pesan / DoS ke room | Batas ukuran pesan (256 B), maks 120 pesan/detik per koneksi, koneksi diputus bila melanggar; maks 2 pemain + 8 penonton per room |
-| Pembuatan room massal | Rate limit `POST /api/room` per IP (Cloudflare Rate Limiting rule) + room tanpa pemain dihapus setelah 60 detik |
+| Spam pesan / DoS ke room | Batas ukuran pesan (256 B), maks 60 pesan/detik per koneksi (normalnya 30 + ping), koneksi diputus bila melanggar; maks 2 pemain + 8 penonton per room |
+| Pembuatan room massal | Rate limit `POST /api/room` dan join per IP (binding Workers Rate Limiting; paket Free hanya punya 1 rule WAF) + room tanpa pemain dihapus setelah 60 detik |
+| Spam `POST /api/event` | Rate limit per IP, hanya menerima daftar jenis kejadian tetap, ukuran ≤ 512 B |
+| Hook test bocor ke produksi | `?seed=` dan percepat waktu hanya dikompilasi di build test; dicek di CI |
 | WebSocket dari situs lain | Cek header `Origin`: hanya `pinkponk.my.id`, `dev.pinkponk.my.id`, localhost saat dev |
 | Pesan cacat | Decoder biner dengan validasi panjang/rentang; pesan JSON (kontrol) divalidasi zod; tolak dan tutup koneksi bila tidak valid |
 | Bocornya API token | Token hanya di GitHub Secrets; izin minimum dan dibatasi ke satu zone; rotasi tiap 90 hari; tidak pernah di repo atau log |
@@ -49,7 +52,8 @@ bukan `unsafe-inline`.
 - SSL/TLS mode **Full (strict)**, Always Use HTTPS, HSTS aktif setelah situs stabil.
 - `dev.pinkponk.my.id` dilindungi Cloudflare Access (email pemilik) atau minimal
   `X-Robots-Tag: noindex`.
-- DNSSEC diaktifkan di Cloudflare dan record DS dipasang di registrar.
+- DNSSEC diaktifkan di Cloudflare dan record DS dipasang di registrar (jika
+  registrar `.my.id` mendukung).
 
 ## 5. Proses
 
@@ -57,4 +61,5 @@ bukan `unsafe-inline`.
   tanpa force-push.
 - Setiap PR yang menyentuh `worker/` atau `packages/protocol` ditinjau khusus
   untuk validasi input dan rate limit.
-- Laporan kerentanan: alamat email di `SECURITY.md` root repo (diisi pemilik).
+- Laporan kerentanan: lewat GitHub Private Vulnerability Reporting (aktifkan di
+  Settings → Security). GitHub juga membaca file ini dari folder `docs/`.
