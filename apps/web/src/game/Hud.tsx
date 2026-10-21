@@ -53,7 +53,8 @@ const ScoreCard = ({
       </div>
     </div>
     <span class={`score__serve${serving ? "" : " score__serve--off"}`} aria-hidden="true" />
-    <span class="score__points" data-testid={you ? "score-you" : "score-opponent"}>
+    {/* key berganti tiap poin agar animasi "bump" diputar ulang. */}
+    <span key={points} class="score__points" data-testid={you ? "score-you" : "score-opponent"}>
       {points}
     </span>
   </div>
@@ -148,15 +149,6 @@ export const Hud = ({
         )}
         {state.badge && <div class="hud__badge">{t(`game.${state.badge}`)}</div>}
         {state.fever && <div class="fever">{t("game.fever")}</div>}
-        {state.judge && (
-          <div
-            key={state.judge.key}
-            class={`judge judge--${state.judge.grade}`}
-            data-testid="judge"
-          >
-            {state.judge.grade.toUpperCase()}
-          </div>
-        )}
         {state.toast && (
           <div key={state.toast.key} class="hud__toast" data-testid="point-reason">
             {t(`game.reason.${state.toast.reason}`)}
@@ -170,6 +162,16 @@ export const Hud = ({
       </div>
 
       <div class="hud__bottom">
+        {/* Penilaian timing di bawah agar tidak menutupi bola di tengah layar. */}
+        {state.judge && (
+          <div
+            key={state.judge.key}
+            class={`judge judge--${state.judge.grade}`}
+            data-testid="judge"
+          >
+            {state.judge.grade.toUpperCase()}
+          </div>
+        )}
         {state.serveHint && (
           <div class="glass hud__hint" data-testid="serve-hint">
             {state.serveHint === "tap"

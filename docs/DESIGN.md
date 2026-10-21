@@ -119,18 +119,26 @@ glow diganti bayangan tipis + garis luar 2 px.
 
 ## 7. Karakter (robot maskot)
 
-- Siluet: helm lebar dengan visor kaca gelap, badan kapsul, lengan pendek lentur,
-  melayang di atas pendorong dengan cahaya neon (tanpa kaki — siluet bulat dan
-  sederhana terbaca jelas dari semua kamera).
-- Garis `#141018` 5 px (kanvas 256×384), sudut membulat; isi warna flat + satu
-  bayangan flat (kanan-bawah) + satu kilau (kiri-atas).
-- Warna yang bisa diatur: **rangka** (helm, lengan), **armor** (badan, telinga),
-  **lampu visor** (mata, antena, inti dada, cahaya pendorong), **bat**.
-- Ekspresi lewat mata di visor: fokus, melirik ke arah pukulan, garang saat smash,
+- Siluet: kepala bulat bertelinga runcing dengan layar wajah gelap, mata bulat
+  menyala dan senyum kecil; badan berbentuk telur; lengan bersegmen yang melayang
+  terpisah dari badan; tangan gelap tiga jari; melayang tanpa kaki di atas cahaya
+  lembut (siluet bulat dan sederhana terbaca jelas dari semua kamera).
+- Gaya mainan plastik mengilap: gradasi lembut (terang kiri-atas → gelap kanan-bawah),
+  satu kilau putih, tepi tipis 3 px senada warna badan; tanpa garis tinta tebal.
+- Warna yang bisa diatur: **badan** (kepala, badan, lengan), **aksen** (garis, telinga
+  dalam, emblem), **mata** (mata, senyum, inti dada, cahaya bawah), **bat**.
+- Tampak belakang: garis V dan garis tengah di kepala, garis kerah di badan.
+- Ekspresi lewat mata di layar wajah: fokus, melirik ke arah pukulan, garang saat smash,
   mengedip saat servis, ^ ^ saat menang, sedih saat kalah.
 - **Tanpa logo merek apa pun.** Emblem dada = bola menyala (dari logo PinkPonk).
 - Digambar prosedural dengan Canvas 2D saat game dimuat (0 byte aset), 8 pose × 2
   arah pandang per robot, disiapkan sekaligus agar tidak tersendat.
+- Lengan pemegang bat tidak ada di gambar badan: digerakkan per frame dengan pegas
+  (sedikit melewati target lalu kembali) plus sapuan bat saat memukul, sehingga bat
+  bergerak halus antarpose. Goyangan kecil saat menunggu.
+- Umpan balik pukulan: kilatan di titik pukul (lebih besar dan pink saat smash), riak
+  di titik pantul meja, skor "membal" saat bertambah. Semua dimatikan bila
+  `prefers-reduced-motion`.
 
 ## 8. Gerak (motion)
 

@@ -9,6 +9,7 @@ import {
   MS_PER_TICK,
   type PlayMode,
   type Side,
+  type Vec3,
 } from "@pinkponk/sim";
 import type { HumanInput } from "./input";
 import type { CrossingView, MatchView, Session } from "./session";
@@ -24,6 +25,8 @@ export interface LocalOptions {
 }
 
 const MAX_STEPS_PER_FRAME = 24;
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const randomSeed = (): number => crypto.getRandomValues(new Uint32Array(1))[0] ?? 1;
 
@@ -44,6 +47,8 @@ export class LocalSession implements Session {
   private anchorSim = 0;
   private anchorWall = 0;
   timeScale = 1;
+  private prevBall: Vec3 = { x: 0, y: 0, z: 0 };
+  private prevBats: [number, number] = [0, 0];
   autoplay: AiController | null = null;
 
   constructor(private readonly opts: LocalOptions) {
@@ -98,6 +103,8 @@ export class LocalSession implements Session {
     m.pushInput(0, this.autoplay ? this.autoplay.input(m) : p0.read(m.tick, this.wallToSimMs));
     if (this.ai) m.pushInput(1, this.ai.input(m));
     else if (p1) m.pushInput(1, p1.read(m.tick, this.wallToSimMs));
+    this.prevBall = { ...m.ball.pos };
+    this.prevBats = [m.players[0].batX, m.players[1].batX];
     m.step();
     if (m.events.length) this.events.push(...m.events);
   }
@@ -114,9 +121,27 @@ export class LocalSession implements Session {
       games: [m.score.games[0], m.score.games[1]],
       fever: [m.inFever(0), m.inFever(1)],
       rallyHits: m.rally?.hits ?? 0,
-      ball: m.ball,
-      bats: [m.players[0].batX, m.players[1].batX],
+      ball: { ...m.ball, pos: this.smoothBall() },
+      bats: [
+        lerp(this.prevBats[0], m.players[0].batX, this.alpha()),
+        lerp(this.prevBats[1], m.players[1].batX, this.alpha()),
+      ],
     };
+  }
+
+  // Layar jarang pas di tick simulasi (120 Hz); tampilkan posisi di antara dua tick
+  // terakhir sesuai sisa waktu agar gerakan bola dan bat tidak tersendat.
+  private alpha(): number {
+    return Math.max(0, Math.min(1, this.acc / MS_PER_TICK));
+  }
+
+  private smoothBall(): Vec3 {
+    const cur = this.match.ball.pos;
+    const prev = this.prevBall;
+    // Bola dipindah mendadak (servis baru, pukulan dengan kompensasi lag): jangan diinterpolasi.
+    if (Math.hypot(cur.x - prev.x, cur.y - prev.y, cur.z - prev.z) > 0.5) return { ...cur };
+    const t = this.alpha();
+    return { x: lerp(prev.x, cur.x, t), y: lerp(prev.y, cur.y, t), z: lerp(prev.z, cur.z, t) };
   }
 
   drainEvents(): MatchEvent[] {

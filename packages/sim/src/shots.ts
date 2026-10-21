@@ -53,7 +53,8 @@ export const swingShot = (from: Vec3, hitter: Side, s: SwingParams, rng: Rng): S
   const kind: ShotKind = smash ? "smash" : power < 0.25 ? "block" : "drive";
   const plan: Plan = {
     kind,
-    speed: smash ? 17 + power * 2 : 5 + power * 10,
+    // Kecepatan dibuat lebih lambat dari aslinya agar enak dimainkan di layar HP.
+    speed: smash ? 12 + power * 2 : 4 + power * 6.5,
     depth: 0.6 + power * 0.6,
     top: smash ? 0.6 : lift,
     side: aim * 0.4,
@@ -65,11 +66,11 @@ export const swingShot = (from: Vec3, hitter: Side, s: SwingParams, rng: Rng): S
 };
 
 const TIMING_PLANS: Record<Exclude<TimingGrade, "miss">, Omit<Plan, "aimX" | "side">> = {
-  perfect: { kind: "smash", speed: 18, depth: 1.15, top: 0.7, sigma: 0.02 },
-  great: { kind: "drive", speed: 13, depth: 1.0, top: 0.4, sigma: 0.04 },
-  good: { kind: "lob", speed: 4.5, depth: 0.9, top: 0.1, sigma: 0.05 },
-  early: { kind: "weak", speed: 6, depth: 0.7, top: 0, sigma: 0.06 },
-  late: { kind: "weak", speed: 6, depth: 0.7, top: 0, sigma: 0.06 },
+  perfect: { kind: "smash", speed: 12.5, depth: 1.15, top: 0.7, sigma: 0.02 },
+  great: { kind: "drive", speed: 9.5, depth: 1.0, top: 0.4, sigma: 0.04 },
+  good: { kind: "lob", speed: 4, depth: 0.9, top: 0.1, sigma: 0.05 },
+  early: { kind: "weak", speed: 5, depth: 0.7, top: 0, sigma: 0.06 },
+  late: { kind: "weak", speed: 5, depth: 0.7, top: 0, sigma: 0.06 },
 };
 
 /** Pukulan mode Timing Smash: jenis pukulan ditentukan nilai timing. */

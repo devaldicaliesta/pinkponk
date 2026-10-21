@@ -30,7 +30,8 @@ const joinRoom = async (request: Request, env: Env, code: string): Promise<Respo
   if (request.headers.get("Upgrade") !== "websocket") return errorResponse(426, "upgrade-required");
   if (!isRoomCode(code)) return errorResponse(404, "not-found");
   if (await limited(env.RL_JOIN, request)) return errorResponse(429, "rate-limited");
-  const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
+  // Room dibuat di wilayah Asia-Pasifik (termasuk Singapura) agar dekat pemain Indonesia.
+  const stub = env.ROOMS.get(env.ROOMS.idFromName(code), { locationHint: "apac" });
   return stub.fetch(request);
 };
 

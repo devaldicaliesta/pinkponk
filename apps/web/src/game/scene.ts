@@ -240,7 +240,7 @@ export const buildScene = (colors: ThemeColors): SceneParts => {
   shadow.rotation.x = -Math.PI / 2;
   scene.add(shadow);
 
-  const blobGeo = track(new CircleGeometry(0.42, 24));
+  const blobGeo = track(new CircleGeometry(0.3, 24));
   const blobMat = track(
     new MeshBasicMaterial({
       color: "#000000",

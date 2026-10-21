@@ -109,6 +109,10 @@
   visibility: hidden;
 }
 
+.score__points {
+  animation: bump 320ms cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
 .score--you .score__points {
   color: var(--pink);
   text-shadow: var(--glow-sm);
@@ -143,14 +147,14 @@
 
 .hud__toast {
   font-family: var(--font-display);
-  font-size: 32px;
+  font-size: 22px;
   text-transform: uppercase;
   animation: pop 200ms var(--ease);
 }
 
 .judge {
   font-family: var(--font-display);
-  font-size: 56px;
+  font-size: 30px;
   line-height: 1;
   text-transform: uppercase;
   animation: judge 420ms var(--ease) both;
@@ -197,7 +201,7 @@
 
 .fever {
   font-family: var(--font-display);
-  font-size: 40px;
+  font-size: 24px;
   color: var(--lime-text);
   text-shadow: 0 0 18px var(--lime);
   letter-spacing: 0.08em;
@@ -277,6 +281,10 @@
 }
 
 @media (max-width: 420px) {
+  .judge {
+    font-size: 24px;
+  }
+
   .score__name {
     max-width: 4.5em;
   }
@@ -312,5 +320,14 @@
   100% {
     transform: translateY(-10px);
     opacity: 0;
+  }
+}
+
+@keyframes bump {
+  from {
+    transform: scale(1.5);
+  }
+  to {
+    transform: scale(1);
   }
 }

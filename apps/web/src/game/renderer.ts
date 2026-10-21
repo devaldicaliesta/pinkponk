@@ -17,8 +17,8 @@ import {
   WebGLRenderer,
 } from "three";
 import type { Pov } from "../state/settings";
+import { BatArm } from "./bat-arm";
 import {
-  batHandX,
   CANVAS_H,
   CANVAS_W,
   drawCharacter,
@@ -27,6 +27,7 @@ import {
   type Pose,
   type View,
 } from "./character";
+import { Effects } from "./effects";
 import { buildScene, type SceneParts, type ThemeColors } from "./scene";
 import type { MatchView } from "./session";
 
@@ -50,8 +51,12 @@ export interface RendererOptions {
 }
 
 const TRAIL_LEN = 14;
-const SPRITE_W = 1.2;
-const SPRITE_H = 1.8;
+// Jarak robot di belakang titik pukul: cukup jauh agar sprite tidak menembus meja.
+const AVATAR_BACK = 0.3;
+const POP_MS = 160;
+// Robot sengaja lebih kecil dari manusia asli agar meja tetap jadi fokus layar.
+const SPRITE_W = 0.9;
+const SPRITE_H = 1.35;
 const POSE_MS: Partial<Record<Pose, number>> = {
   forehand: 320,
   backhand: 320,
@@ -67,8 +72,11 @@ interface Avatar {
   textures: Map<string, CanvasTexture>;
   look: Look;
   view: View;
-  /** Offset tangan-bat terhadap tengah sprite (m), dihaluskan antar pose. */
-  handOffset: number;
+  arm: BatArm;
+  /** Posisi lateral bat frame sebelumnya, untuk kemiringan saat bergerak. */
+  prevBatX: number;
+  lean: number;
+  popUntil: number;
 }
 
 export class GameRenderer {
@@ -77,6 +85,7 @@ export class GameRenderer {
   private readonly parts: SceneParts;
   private readonly avatars: [Avatar, Avatar];
   private readonly trail: Line;
+  private readonly effects: Effects;
   private readonly trailPositions = new Float32Array(TRAIL_LEN * 3);
   private trailCount = 0;
   private trailUntil = 0;
@@ -109,6 +118,7 @@ export class GameRenderer {
     );
     this.trail.frustumCulled = false;
     this.parts.scene.add(this.trail);
+    this.effects = new Effects(this.parts.scene);
     this.applyTheme(opts.colors);
   }
 
@@ -129,7 +139,10 @@ export class GameRenderer {
       textures: new Map(),
       look: this.opts.looks[side],
       view,
-      handOffset: 0,
+      arm: new BatArm(mesh, this.opts.looks[side], view, SPRITE_W),
+      prevBatX: 0,
+      lean: 0,
+      popUntil: 0,
     };
     // Siapkan semua tekstur pose sekarang agar tidak tersendat saat pose pertama muncul.
     for (const pose of POSE_LIST) this.texture(a, pose);
@@ -145,7 +158,7 @@ export class GameRenderer {
       c.width = CANVAS_W;
       c.height = CANVAS_H;
       const ctx = c.getContext("2d");
-      if (ctx) drawCharacter(ctx, a.look, pose, a.view);
+      if (ctx) drawCharacter(ctx, a.look, pose, a.view, false);
       tex = new CanvasTexture(c);
       tex.colorSpace = SRGBColorSpace;
       a.textures.set(key, tex);
@@ -154,6 +167,7 @@ export class GameRenderer {
   }
 
   private setPose(a: Avatar, pose: Pose, now = 0): void {
+    if (a.pose !== pose) a.popUntil = now + POP_MS;
     a.pose = pose;
     a.poseUntil = now + (POSE_MS[pose] ?? 0);
     a.mat.map = this.texture(a, pose);
@@ -193,16 +207,30 @@ export class GameRenderer {
 
   /** Reaksi visual atas kejadian pertandingan (pose karakter, jejak, getar layar). */
   onEvent(e: MatchEvent, now: number, view: MatchView): void {
-    if (e.type === "hit") {
+    const c = this.opts.colors;
+    const f = this.flip;
+    if (e.type === "bounce") {
+      if (!this.opts.reducedMotion)
+        this.effects.bounce(e.x * f, e.z * f, c.dark ? c.cyan : c.pink, now);
+    } else if (e.type === "hit") {
       const a = this.avatars[e.player];
+      if (!this.opts.reducedMotion) {
+        const b = view.ball.pos;
+        const smash = e.shot === "smash";
+        const color = smash || !c.dark ? c.pink : c.lime;
+        this.effects.hit(b.x * f, b.y, b.z * f, smash, color, now);
+      }
       if (e.shot === "smash") {
         this.setPose(a, "smash", now);
+        a.arm.kick("smash", this.opts.reducedMotion);
         this.trailUntil = now + 900;
         if (!this.opts.reducedMotion) this.shakeUntil = now + 150;
       } else if (e.shot !== "serve") {
         const batX = view.bats[e.player];
         const forehand = (view.ball.pos.x - batX) * (e.player === 0 ? 1 : -1) >= 0;
-        this.setPose(a, forehand ? "forehand" : "backhand", now);
+        const swing = forehand ? "forehand" : "backhand";
+        this.setPose(a, swing, now);
+        a.arm.kick(swing, this.opts.reducedMotion);
       }
     } else if (e.type === "toss") {
       this.setPose(this.avatars[e.player], "serve", now);
@@ -237,6 +265,7 @@ export class GameRenderer {
     this.updateAvatars(v, now);
     this.updateTrail(v, now, fever);
     this.updateRing(ring);
+    this.effects.update(now);
     this.updateCamera(v, now);
     this.renderer.render(p.scene, this.camera);
   }
@@ -265,25 +294,37 @@ export class GameRenderer {
         const next: Pose = v.phase === "rally" ? "ready" : "idle";
         if (a.pose !== next) this.setPose(a, next, now);
       }
-      // Geser sprite agar tangan pemegang bat (yang posisinya beda tiap pose) tepat di
-      // posisi bat sebenarnya. Dari depan gambar dicerminkan, jadi arah offset dibalik.
-      const handPx = batHandX(a.pose) - CANVAS_W / 2;
-      const target = ((a.view === "back" ? 1 : -1) * handPx * SPRITE_W) / CANVAS_W;
-      a.handOffset += (target - a.handOffset) * (this.opts.reducedMotion ? 1 : 0.35);
+      const calm = this.opts.reducedMotion;
+      a.arm.update(a.pose, now, calm);
+      // Geser sprite agar tangan pemegang bat (yang bergerak halus antarpose) tepat di posisi
+      // bat sebenarnya.
+      const handOffset = a.arm.handOffset();
       const batX = v.bats[side] * this.flip;
-      const baseZ = (side === 0 ? HIT_PLANE_Z + 0.32 : -HIT_PLANE_Z - 0.32) * this.flip;
+      const baseZ =
+        (side === 0 ? HIT_PLANE_Z + AVATAR_BACK : -HIT_PLANE_Z - AVATAR_BACK) * this.flip;
       const yaw = Math.atan2(this.camPos.x - batX, this.camPos.z - baseZ);
+      // Melayang naik-turun pelan; tiap robot beda fase agar tidak serempak.
+      const hover = calm ? 0 : Math.sin(now / 420 + side * 2.1) * 0.018;
       a.mesh.position.set(
-        batX - Math.cos(yaw) * a.handOffset,
-        FLOOR_Y,
-        baseZ + Math.sin(yaw) * a.handOffset,
+        batX - Math.cos(yaw) * handOffset,
+        FLOOR_Y + 0.02 + hover,
+        baseZ + Math.sin(yaw) * handOffset,
       );
       a.mesh.rotation.y = yaw;
-      // Miringkan sebagian ke arah kamera tinggi agar sprite tidak tampak gepeng.
+      // Condong sedikit ke arah gerakan, dihaluskan agar tidak patah-patah.
+      const moved = batX - a.prevBatX;
+      a.prevBatX = batX;
+      const leanTarget = calm ? 0 : Math.max(-0.14, Math.min(0.14, -moved * 3));
+      a.lean += (leanTarget - a.lean) * 0.2;
+      a.mesh.rotation.z = a.lean;
+      // Kemiringan kecil ke kamera tinggi; jarak AVATAR_BACK menjaga sprite tetap di luar meja.
       const dx = this.camPos.x - a.mesh.position.x;
       const dz = this.camPos.z - a.mesh.position.z;
       const pitch = Math.atan2(this.camPos.y - (FLOOR_Y + SPRITE_H / 2), Math.hypot(dx, dz));
-      a.mesh.rotation.x = -Math.max(0, pitch) * 0.5;
+      a.mesh.rotation.x = -Math.max(0, pitch) * 0.15;
+      // "Pop" kecil saat ganti pose agar pergantian gambar terasa sebagai gerakan.
+      const pop = calm ? 0 : Math.max(0, a.popUntil - now) / POP_MS;
+      a.mesh.scale.set(1 + pop * 0.05, 1 + pop * 0.07, 1);
       a.mesh.visible = !(this.pov === "first" && side === this.opts.viewer);
       this.parts.playerShadows[side].position.set(
         a.mesh.position.x,
@@ -343,24 +384,29 @@ export class GameRenderer {
       case "iso": {
         // Isometrik: kamera jauh dan tinggi dari sudut meja, lensa sempit (hampir ortografis).
         // Potret: sudut lebih sejajar panjang meja agar kedua robot muat di layar sempit.
-        pos = portrait ? new Vector3(3.2, 10.5, 9.6) : new Vector3(6.2, 7.2, 6.4);
-        look = portrait ? new Vector3(0, -0.4, 0.35) : new Vector3(0, -0.25, 0);
-        fov = portrait ? 34 : 24;
+        pos = portrait ? new Vector3(2.7, 8.6, 7.8) : new Vector3(5.0, 5.8, 5.2);
+        look = portrait ? new Vector3(0, -0.4, 0.3) : new Vector3(0, -0.3, 0);
+        fov = portrait ? 33 : 24;
         break;
       }
       case "tv": {
         const follow = this.opts.reducedMotion ? 0 : v.ball.pos.z * f * 0.25;
-        pos = portrait ? new Vector3(0.9, 3.3, 5.0) : new Vector3(3.2, 2.0, 3.4);
+        pos = portrait ? new Vector3(0.8, 2.8, 4.1) : new Vector3(2.6, 1.9, 3.3);
         pos.z += follow;
         look = new Vector3(0, -0.1, -0.2 + follow);
-        fov = portrait ? 62 : 48;
+        fov = portrait ? 60 : 48;
         break;
       }
-      default:
-        // Potret: kamera lebih tinggi agar karakter dekat tidak menutupi meja.
-        pos = portrait ? new Vector3(0, 3.5, 3.5) : new Vector3(0, 1.75, 3.2);
-        look = portrait ? new Vector3(0, -0.25, -0.3) : new Vector3(0, -0.2, -0.45);
-        fov = portrait ? 58 : 50;
+      default: {
+        // Potret: kamera lebih tinggi agar karakter dekat tidak menutupi meja. Kamera ikut
+        // sedikit ke arah bat pemain agar robot sendiri tetap terlihat dan gerakan terasa hidup.
+        const follow = this.opts.reducedMotion ? 0 : viewerBat;
+        pos = portrait ? new Vector3(0, 3.0, 2.9) : new Vector3(0, 2.45, 3.35);
+        look = portrait ? new Vector3(0, -0.3, -0.2) : new Vector3(0, -0.55, -0.45);
+        pos.x += follow * 0.3;
+        look.x += follow * 0.12;
+        fov = portrait ? 56 : 46;
+      }
     }
     const k = this.opts.reducedMotion ? 1 : 0.12;
     this.camPos.lerp(pos, k);
@@ -383,7 +429,9 @@ export class GameRenderer {
       for (const t of a.textures.values()) t.dispose();
       a.mat.dispose();
       a.mesh.geometry.dispose();
+      a.arm.dispose();
     }
+    this.effects.dispose();
     this.trail.geometry.dispose();
     (this.trail.material as LineBasicMaterial).dispose();
     this.renderer.dispose();

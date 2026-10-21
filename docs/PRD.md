@@ -149,7 +149,7 @@ Selisih = waktu tap − waktu ideal (bola tepat di titik pukul).
   menambahkan spin.
 - **Combo:** 3 PERFECT beruntun → **Fever** selama 8 detik: smash lebih kuat
   dan jejak bola berupa coretan neon.
-- Kecepatan bola naik 4% setiap pukulan dalam satu reli (maks +60%); lebar
+- Kecepatan bola naik 3% setiap pukulan dalam satu reli (maks +35%); lebar
   jendela timing tetap, sehingga tantangannya ada pada kecepatan baca.
 
 ### 8.2 Penanda visual dan audio
@@ -192,17 +192,18 @@ pertama, karena POV itu hanya bisa untuk satu pemain.
 
 ## 11. Karakter
 
-- **Robot maskot** orisinal, ilustrasi flat 2D: badan kapsul, helm dengan visor kaca
-  dan mata neon berekspresi, lengan lentur, melayang di atas pendorong yang menyala.
-  Garis hitam tebal, bayangan flat.
+- **Robot maskot** orisinal bergaya mainan plastik mengilap: kepala bertelinga runcing
+  dengan layar wajah gelap dan mata bulat menyala, badan telur, lengan bersegmen yang
+  melayang, tangan gelap, garis aksen berwarna, melayang tanpa kaki.
 - **Dilarang** memakai logo atau merek nyata (Nike, Adidas, Butterfly, dll.) atau
   bentuk yang menyerupainya. Panel dada memakai emblem PinkPonk (bola menyala).
-- Kustomisasi (MVP): warna rangka, armor, lampu visor, dan bat. Lawan otomatis
+- Kustomisasi (MVP): warna badan, aksen, mata, dan bat. Lawan otomatis
   memakai warna kontras.
 - Pose: idle, siap, forehand, backhand, smash, servis, menang, kalah — masing-masing
-  dengan ekspresi visor (fokus, melirik, garang, mengedip, ^ ^, sedih).
+  dengan ekspresi mata (fokus, melirik, garang, mengedip, ^ ^, sedih).
 - Digambar prosedural (Canvas 2D, tanpa file sprite) lalu dirender sebagai billboard
-  di scene 3D; tangan pemegang bat selalu sejajar posisi bat sebenarnya.
+  di scene 3D; tangan pemegang bat selalu sejajar posisi bat sebenarnya dan lengan bat
+  dianimasikan halus (pegas + sapuan saat memukul).
 
 ## 12. Tampilan dan tema
 

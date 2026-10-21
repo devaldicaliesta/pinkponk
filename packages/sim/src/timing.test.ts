@@ -24,9 +24,9 @@ describe("penilaian timing", () => {
     expect(gradeTiming(null)).toBe("miss");
   });
 
-  it("kecepatan reli naik 4% per pukulan, maksimal 60%", () => {
+  it("kecepatan reli naik 3% per pukulan, maksimal 35%", () => {
     expect(rallySpeedFactor(0)).toBe(1);
-    expect(rallySpeedFactor(5)).toBeCloseTo(1.2);
-    expect(rallySpeedFactor(100)).toBeCloseTo(1.6);
+    expect(rallySpeedFactor(5)).toBeCloseTo(1.15);
+    expect(rallySpeedFactor(100)).toBeCloseTo(1.35);
   });
 });
