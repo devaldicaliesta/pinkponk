@@ -66,7 +66,25 @@ peringkat online (ID hash, nickname, rating, menang/kalah).
   - spin: gerakan ke atas → topspin, ke bawah → backspin, menyamping → sidespin.
 - Sudut bat otomatis (assist) supaya pemain HP tidak perlu mengatur kemiringan.
 - Pukulan keras, bersudut tajam, atau kena tepi bat punya sebaran lebih lebar
-  (lebih berisiko keluar meja): risiko sebanding hadiah.
+  (lebih berisiko keluar meja): risiko sebanding hadiah. Pukulan sangat keras sesekali
+  terlalu rendah dan menyangkut net (berlaku sama untuk pemain dan AI).
+- Jenis pukulan dari kombinasi tenaga + arah ayunan (nama pukulan muncul di layar dan
+  tiap jenis punya bunyi sendiri):
+
+  | Pukulan | Cara | Sifat |
+  |---------|------|-------|
+  | Smash | ayun sangat keras ke bola tinggi | tercepat, paling berisiko |
+  | Loop | ayun ke atas, tenaga sedang/keras | topspin berat, menukik lalu melompat |
+  | Chop | ayun ke bawah | backspin berat, bola tertahan dan rendah |
+  | Drop | ayun pelan ke bawah | jatuh pendek dekat net |
+  | Lob | ayun pelan ke atas | tinggi dan dalam, aman tetapi mengundang smash |
+  | Drive/Block | lainnya | datar / sekadar mengembalikan |
+
+- **Titik manis**: bola yang kena tengah bat (≤ 25% jangkauan) dengan ayunan cukup
+  bertenaga dinilai **PERFECT** (dan mengisi stack Gamble).
+- Momen dramatis dirayakan di layar: kena ujung meja, menyentuh net lalu masuk, smash
+  yang berhasil dikembalikan, reli tiap 10 pukulan, dan comeback setelah tertinggal ≥ 4
+  poin dalam satu game.
 - Keyboard (1 pemain): ←/→ atau A/D gerak, ↑/↓ atau W/S topspin/backspin, Spasi
   pukulan keras + servis.
 - Keyboard (Lokal 2 pemain): P1 A/D, W/S, Spasi; P2 ←/→, ↑/↓, Enter.
@@ -97,7 +115,7 @@ peringkat online (ID hash, nickname, rating, menang/kalah).
 
 | # | Mode | Ringkasan | Prioritas |
 |---|------|-----------|-----------|
-| 1 | **Vs AI** | Mudah / Sedang / Sulit. Bisa offline (PWA). | MVP |
+| 1 | **Vs AI** | Mudah / Sedang / Sulit / Legenda, empat gaya lawan. Bisa offline (PWA). | MVP |
 | 2 | **Lokal 2 pemain** | Satu perangkat, di browser desktop: keyboard dibagi (WASD vs panah). Versi layar sentuh HP/tablet ada di backlog. | MVP |
 | 3 | **Online 1v1** | Buat room → kode 6 karakter + link. Server-authoritative di Durable Object. | MVP |
 | 4 | **Timing Smash** | Hanya klik/tap; hasil pukulan ditentukan ketepatan timing (lihat §8). Vs AI dan online. | MVP |
@@ -107,14 +125,28 @@ peringkat online (ID hash, nickname, rating, menang/kalah).
 
 AI memakai fisika yang sama dengan pemain (tidak curang). Tingkat kesulitan diatur oleh:
 
-| Parameter | Mudah | Sedang | Sulit |
-|-----------|-------|--------|-------|
-| Waktu reaksi | 350 ms | 220 ms | 140 ms |
-| Galat prediksi titik jatuh | ± 25 cm | ± 12 cm | ± 5 cm |
-| Kecepatan gerak maks | 2,5 m/s | 3,5 m/s | 4,5 m/s |
-| Pemakaian spin/smash | jarang | sedang | sering |
+| Parameter | Mudah | Sedang | Sulit | Legenda |
+|-----------|-------|--------|-------|---------|
+| Waktu reaksi | 350 ms | 220 ms | 150 ms | 95 ms |
+| Galat posisi bat | ± 30 cm | ± 17 cm | ± 10 cm | ± 5 cm |
+| Kecepatan gerak maks | 2,5 m/s | 3,5 m/s | 5 m/s | 6,5 m/s |
+| Kontrol (pengali sebaran pukulan) | 1,4 | 1,05 | 0,72 | 0,47 |
+| Taktik (sudut, loop/chop/drop, smash) | jarang | sedang | sering | hampir selalu |
+| Simpangan tap (Timing Smash) | 120 ms | 65 ms | 42 ms | 37 ms |
 
-Nilai di atas adalah angka awal untuk di-tuning lewat playtest.
+AI juga punya kesalahan manusiawi: sesekali salah baca bola sama sekali, smash keras
+bisa menyangkut net, makin panjang reli makin berani (dan berisiko), sedikit goyah setelah
+kehilangan 2 poin beruntun, dan lebih fokus saat menghadapi game point. Legenda sengaja
+punya kelemahan yang bisa dibaca: sabar dalam reli panjang memaksanya mengambil risiko.
+
+**Gaya lawan** (dipilih terpisah dari tingkat): *Serba bisa*; *Tembok* (chop dan lob,
+reli panjang, jarang menyerang); *Tukang smash* (agresif, sering pura-pura smash lalu
+drop — ancang-ancang smash terlihat dari pose robot); *Pemutar* (loop/chop berat dan
+sudut tajam).
+
+Kalibrasi memakai `packages/sim/stress/tune.stress.ts` (AI vs AI dan "pemain tiruan"
+secepat manusia). Hasil terakhir, pemain tiruan menang: vs Sulit ±55%, vs Legenda ±30%
+(ayunan).
 
 ### 7.2 Online 1v1
 
@@ -139,10 +171,13 @@ Nilai di atas adalah angka awal untuk di-tuning lewat playtest.
 
 ### 7.3 Mode Gamble
 
-- **Stack**: +1 tiap berhasil mengembalikan bola, +1 tiap memenangkan poin (maks 6).
+- **Stack**: hanya bertambah dari pukulan **PERFECT** (timing tepat di Timing Smash, kena
+  titik manis bat di ayunan), maks 5. Kemampuan adalah hadiah untuk bermain bagus.
 - Stack penuh → tombol **GAMBLE** (atau `E`/`Q`, gamepad Y) memutar roulette. Hasil
   diputuskan simulasi (server saat online), jadi tidak bisa dicurangi dari client.
 - Kemampuan berlaku 1–2 poin berikutnya. Ditekan saat reli: aktif mulai poin berikutnya.
+- Roulette tampil sebagai pil kecil di dekat pemiliknya (atas bar Gamble untuk kita, di
+  bawah skor lawan untuk lawan), tidak di tengah layar, jadi permainan tetap terlihat.
 - Gaya main bisa **Ayunan** atau **Timing Smash** (vs AI: pilihan "Gaya main" di layar
   atur; online: pilihan Mode + Mode Gamble di lobby/antrean). Di Timing Smash bat bergerak
   sendiri, jadi Bat Raksasa/JACKPOT melebarkan semua jendela timing ×1,5, Magnet ×1,25,
@@ -152,13 +187,17 @@ Nilai di atas adalah angka awal untuk di-tuning lewat playtest.
 
 | Kemampuan | Efek | Peluang |
 |-----------|------|---------|
-| Bat Raksasa | Jangkauan bat ×1,6 | 16% |
-| Bola Kilat | Pukulan ×1,25 lebih cepat | 15% |
-| Poin Ganda | Poin yang dimenangkan bernilai 2 (tidak melewati akhir game) | 12% |
-| Perisai | Satu bola yang lolos dikembalikan otomatis per poin | 13% |
-| Magnet | Bat ×1,6 lebih gesit, pukulan lebih akurat | 13% |
-| Bekukan | Bat lawan ×0,55 | 11% |
-| Bola Hantu | Bola menghilang di tengah meja bagi lawan (AI bereaksi lebih lambat) | 10% |
+| Bat Raksasa | Jangkauan bat ×1,6 | 11% |
+| Bola Kilat | Pukulan ×1,25 lebih cepat | 10% |
+| Poin Ganda | Poin yang dimenangkan bernilai 2 (tidak melewati akhir game) | 9% |
+| Perisai | Satu bola yang lolos dikembalikan otomatis per poin | 9% |
+| Magnet | Bat ×1,6 lebih gesit, pukulan lebih akurat | 9% |
+| Bekukan | Bat lawan ×0,55 | 8% |
+| Bola Hantu | Bola menghilang di tengah meja bagi lawan (AI bereaksi lebih lambat) | 8% |
+| Bola Melengkung | Pukulan (selain smash) melengkung dengan sidespin penuh | 9% |
+| Zona Lambat | Bola yang menyeberang net ke arah kita melambat ×0,7 | 8% |
+| Mode Smash | Smash lebih mudah dipicu; di Timing Smash GREAT pun jadi smash | 6% |
+| Curi! | Mengambil hingga 3 stack lawan (1 poin) | 3% |
 | **Sial!** | Bat sendiri mengecil ×0,65, kurang akurat — risiko gamble | 7% |
 | **JACKPOT** | Bat raksasa + poin ganda | 3% |
 

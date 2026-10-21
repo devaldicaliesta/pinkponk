@@ -1,13 +1,14 @@
 import type { GambleView } from "@pinkponk/protocol";
 import {
-  AI_PROFILES,
   AiController,
+  aiSkill,
   BAT_SPEED,
   type BestOf,
   type Difficulty,
   Match,
   type MatchEvent,
   MS_PER_TICK,
+  type Personality,
   type PlayMode,
   type Side,
   type Vec3,
@@ -20,6 +21,7 @@ export interface LocalOptions {
   bestOf: BestOf;
   /** null = 2 pemain lokal (kedua sisi manusia). */
   difficulty: Difficulty | null;
+  personality: Personality;
   names: [string, string];
   inputs: [HumanInput, HumanInput | null];
   calibrationMs: number;
@@ -73,18 +75,32 @@ export class LocalSession implements Session {
   }
 
   private createMatch(): Match {
-    const aiSpeed = this.opts.difficulty ? AI_PROFILES[this.opts.difficulty].speed : BAT_SPEED;
+    const d = this.opts.difficulty;
+    const skill = d ? aiSkill(d, this.opts.personality) : { speed: BAT_SPEED, control: 1 };
     return new Match({
       mode: this.opts.mode,
       bestOf: this.opts.bestOf,
       seed: randomSeed(),
-      batSpeed: [BAT_SPEED, aiSpeed],
+      batSpeed: [BAT_SPEED, skill.speed],
+      control: [1, skill.control],
       gamble: this.opts.gamble,
     });
   }
 
   private createAi(): AiController | null {
-    return this.opts.difficulty ? new AiController(1, this.opts.difficulty, randomSeed()) : null;
+    const d = this.opts.difficulty;
+    return d ? new AiController(1, d, randomSeed(), this.opts.personality) : null;
+  }
+
+  /**
+   * AI sedang memperlihatkan ancang-ancang smash untuk bola yang menuju ke arahnya. Bisa
+   * tipuan: pukulannya ternyata drop shot.
+   */
+  aiWindup(): Side | null {
+    const ai = this.ai;
+    const rally = this.match.rally;
+    if (!ai || ai.intent !== "smash" || !rally || rally.lastHitter === ai.side) return null;
+    return ai.side;
   }
 
   private wallToSimMs = (wall: number): number =>

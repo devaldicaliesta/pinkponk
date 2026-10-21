@@ -9,6 +9,7 @@ import {
   ROULETTE,
   rollAbility,
   STACK_MAX,
+  STEAL_MAX,
   tickPoint,
 } from "./gamble";
 import { Match } from "./match";
@@ -130,8 +131,10 @@ describe("gamble di dalam Match", () => {
     m.pushInput(1, { ...emptyInput(0), serve: true, power: 0.4 });
     // Pemain 0 sengaja menaruh bat jauh dari bola.
     const events = run(m, 500, () => ({ ...emptyInput(m.tick), x: 1.1 }));
-    expect(events.some((e) => e.type === "shield" && e.player === 0)).toBe(true);
-    expect(m.players[0].gamble.shieldUsed || m.players[0].gamble.ability === null).toBe(true);
+    // Tepat satu penyelamatan sebelum poin pertama berakhir (perisai sekali per poin).
+    const firstPoint = events.findIndex((e) => e.type === "point");
+    const beforePoint = firstPoint < 0 ? events : events.slice(0, firstPoint);
+    expect(beforePoint.filter((e) => e.type === "shield" && e.player === 0)).toHaveLength(1);
   });
 
   it("AI vs AI mode gamble selesai, deterministik, dan kemampuan benar-benar dipakai", () => {
@@ -244,4 +247,83 @@ describe("gamble di mode Timing Smash", () => {
     expect(m.phase).toBe("over");
     expect(abilities).toBeGreaterThan(0);
   }, 20_000);
+});
+
+describe("gamble: stack dari PERFECT dan kemampuan baru", () => {
+  const swingMatch = (seed = 3) =>
+    new Match({
+      mode: "swing",
+      bestOf: 1,
+      seed,
+      skipCountdown: true,
+      gamble: true,
+      firstServer: 1,
+    });
+
+  /** Pemain 1 servis; pemain 0 memukul dengan posisi bat `offset` dari bola. */
+  const returnServe = (m: Match, offset: number, power: number) => {
+    m.pushInput(1, { ...emptyInput(0), serve: true, power: 0.4 });
+    const events: MatchEvent[] = [];
+    for (let i = 0; i < 600; i++) {
+      const c = m.upcomingCrossing(0);
+      const x = c ? c.x + offset : 0;
+      m.pushInput(0, { ...emptyInput(m.tick), x, power, lift: 0.2 });
+      m.pushInput(1, emptyInput(m.tick));
+      m.step();
+      events.push(...m.events);
+      if (events.some((e) => e.type === "hit" && e.player === 0)) break;
+    }
+    return events;
+  };
+
+  it("pukulan kena titik manis = PERFECT dan menambah stack", () => {
+    const m = swingMatch();
+    const events = returnServe(m, 0, 0.6);
+    expect(events.some((e) => e.type === "judge" && e.player === 0 && e.grade === "perfect")).toBe(
+      true,
+    );
+    expect(m.players[0].gamble.stack).toBe(1);
+  });
+
+  it("pukulan di tepi bat tidak menambah stack, memenangkan poin pun tidak", () => {
+    const m = swingMatch();
+    const events = returnServe(m, 0.3, 0.6);
+    expect(events.some((e) => e.type === "hit" && e.player === 0)).toBe(true);
+    expect(m.players[0].gamble.stack).toBe(0);
+    const endPoint = (m as unknown as { endPoint(r: object): void }).endPoint.bind(m);
+    endPoint({ kind: "point", winner: 0, reason: "out" });
+    expect(m.players[0].gamble.stack).toBe(0);
+  });
+
+  it("Curi mengambil stack lawan", () => {
+    // Cari keadaan RNG yang membuat roulette menghasilkan "steal".
+    let seed = 0;
+    while (rollAbility({ state: seed }).ability !== "steal") seed++;
+    const m = swingMatch();
+    (m as unknown as { rng: { state: number } }).rng.state = seed;
+    addStack(m.players[0].gamble, STACK_MAX);
+    m.players[1].gamble.stack = 4;
+    run(m, 1, () => ({ ...emptyInput(m.tick), ability: true }));
+    expect(m.players[0].gamble.ability).toBe("steal");
+    expect(m.players[0].gamble.stack).toBe(STEAL_MAX);
+    expect(m.players[1].gamble.stack).toBe(1);
+  });
+
+  it("Zona Lambat memperlambat bola yang masuk ke sisi pemiliknya", () => {
+    const speedAfterNet = (slow: boolean) => {
+      const m = swingMatch(9);
+      if (slow) {
+        m.players[0].gamble.ability = "slowmo";
+        m.players[0].gamble.pointsLeft = 2;
+      }
+      m.pushInput(1, { ...emptyInput(0), serve: true, power: 0.6 });
+      for (let i = 0; i < 400; i++) {
+        m.pushInput(0, emptyInput(m.tick));
+        m.step();
+        if (m.phase === "rally" && m.ball.pos.z > 0.3) return Math.abs(m.ball.vel.z);
+      }
+      return 0;
+    };
+    expect(speedAfterNet(true)).toBeLessThan(speedAfterNet(false) * 0.8);
+  });
 });

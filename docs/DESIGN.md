@@ -145,23 +145,33 @@ glow diganti bayangan tipis + garis luar 2 px.
 
 - Status yang bertahan lama (Deuce, Game point, Match point, FEVER!) berupa label kecil
   di atas, di bawah tombol kamera/jeda, agar tidak menutupi meja dan bola.
-- Hanya teks sesaat (hitung mundur, alasan poin, roulette) yang boleh muncul di tengah.
+- Hanya teks sesaat (hitung mundur, alasan poin) yang boleh muncul di tengah.
+- Penilaian timing (PERFECT/GREAT/…) dan nama pukulan (SMASH/LOOP/CHOP/DROP/LOB/
+  LENGKUNG) melayang tepat di atas bar bawah tanpa menggeser tombol. Nama pukulan lawan
+  lebih kecil dan pudar; penilaian hanya untuk pemain sendiri. Warna: smash pink,
+  loop/lengkung lime, chop/drop cyan.
+- **Momen** (Kena ujung!, Net masuk!, Smash dikembalikan!, Reli 10!, Comeback!) berupa
+  pil kecil di bawah label status atas; milik kita berwarna gold + glow, milik lawan
+  netral.
 
 ## 7a. HUD mode Gamble dan layar peringkat
 
-- **Meter stack**: 6 kotak kecil (pip) di kiri bawah bersama tombol **GAMBLE**. Pip
+- **Meter stack**: 5 kotak kecil (pip) di kiri bawah bersama tombol **GAMBLE**. Pip
   terisi = pink + glow. Stack lawan ditampilkan kecil di bawah kartu skornya.
 - **Tombol GAMBLE** aktif hanya saat stack penuh; denyutnya lewat cahaya, bukan skala,
   supaya tombol tidak bergeser saat disentuh. Petunjuk keyboard `Tekan E` disembunyikan
   di layar sentuh.
-- **Roulette**: panel kaca di tengah; nama kemampuan berputar ±0,9 detik (melambat)
-  lalu berhenti di hasil server. Warna hasil: menguntungkan = lime, JACKPOT = gold,
+- **Roulette**: pil kaca kecil, tidak pernah di tengah layar — roulette kita melayang di
+  atas bar Gamble, roulette lawan di bawah kartu skornya (tanpa deskripsi). Nama
+  kemampuan berputar ±0,9 detik (melambat) lalu berhenti di hasil server, tampil ±2 detik. Warna hasil: menguntungkan = lime, JACKPOT = gold,
   "Sial!" = danger + getar kecil. *Reduced motion*: langsung tampil hasil.
 - **Aura** berdenyut di kaki robot selama kemampuan aktif (lime/gold/merah/cyan untuk
   perisai); bat membesar/mengecil; robot yang dibekukan diberi tint biru es; bola hantu
   memudar di tengah meja (pemiliknya tetap melihat samar).
 - **Efek pukulan**: kilatan di titik pukul (pink saat smash), riak di titik pantul, angka
-  skor "membal".
+  skor "membal". Jejak bola untuk smash (0,9 detik) serta loop/lengkung (0,5 detik).
+- **Ancang-ancang AI**: robot AI mengangkat bat (pose smash) sebelum bola tiba saat
+  berniat smash; Tukang smash kadang menipu dan ternyata memukul drop.
 - **Peringkat**: baris dengan nomor (1 gold, 2 cyan, 3 pink), nama, M/K, rating; baris
   sendiri bergaris pink. Tab Pribadi: bar level, kartu statistik, daftar pencapaian (★).
 

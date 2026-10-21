@@ -11,12 +11,19 @@ export const ABILITIES = [
   "ghost",
   "jinx",
   "jackpot",
+  "curve",
+  "slowmo",
+  "steal",
+  "smasher",
 ] as const;
 export type Ability = (typeof ABILITIES)[number];
 
-export const STACK_MAX = 6;
-export const STACK_PER_RETURN = 1;
-export const STACK_PER_POINT = 1;
+// Stack hanya terisi dari pukulan PERFECT (timing tepat atau kena titik manis bat), jadi
+// kemampuan adalah hadiah untuk bermain bagus, bukan sekadar lama bermain.
+export const STACK_MAX = 5;
+export const STACK_PER_PERFECT = 1;
+/** Kemampuan "Curi": jumlah stack lawan maksimal yang diambil. */
+export const STEAL_MAX = 3;
 
 interface Slice {
   ability: Ability;
@@ -28,13 +35,17 @@ interface Slice {
 // Roulette: sebagian besar menguntungkan, tetapi ada risiko "jinx" yang merugikan
 // pemakainya sendiri. Itulah unsur gamble-nya.
 export const ROULETTE: readonly Slice[] = [
-  { ability: "giant", weight: 16, points: [1, 2] },
-  { ability: "turbo", weight: 15, points: [1, 2] },
-  { ability: "double", weight: 12, points: [1, 1] },
-  { ability: "shield", weight: 13, points: [1, 2] },
-  { ability: "magnet", weight: 13, points: [1, 2] },
-  { ability: "freeze", weight: 11, points: [1, 2] },
-  { ability: "ghost", weight: 10, points: [1, 2] },
+  { ability: "giant", weight: 11, points: [1, 2] },
+  { ability: "turbo", weight: 10, points: [1, 2] },
+  { ability: "double", weight: 9, points: [1, 1] },
+  { ability: "shield", weight: 9, points: [1, 2] },
+  { ability: "magnet", weight: 9, points: [1, 2] },
+  { ability: "freeze", weight: 8, points: [1, 2] },
+  { ability: "ghost", weight: 8, points: [1, 2] },
+  { ability: "curve", weight: 9, points: [1, 2] },
+  { ability: "slowmo", weight: 8, points: [1, 2] },
+  { ability: "smasher", weight: 6, points: [1, 2] },
+  { ability: "steal", weight: 3, points: [1, 1] },
   { ability: "jinx", weight: 7, points: [1, 1] },
   { ability: "jackpot", weight: 3, points: [1, 1] },
 ];
@@ -90,6 +101,12 @@ export interface Mods {
   shield: boolean;
   /** Pengali lebar jendela timing (mode Timing Smash, bat bergerak sendiri). */
   timingWindow: number;
+  /** Pukulan melengkung dengan sidespin penuh. */
+  curve: boolean;
+  /** Smash lebih mudah dipicu (dan GREAT menjadi smash di Timing Smash). */
+  easySmash: boolean;
+  /** Bola yang menyeberang net menuju pemain ini melambat. */
+  slowIncoming: boolean;
 }
 
 export const NO_MODS: Readonly<Mods> = Object.freeze({
@@ -100,6 +117,9 @@ export const NO_MODS: Readonly<Mods> = Object.freeze({
   pointValue: 1,
   shield: false,
   timingWindow: 1,
+  curve: false,
+  easySmash: false,
+  slowIncoming: false,
 });
 
 export const modsFor = (mine: GambleState, theirs: GambleState): Mods => {
@@ -132,6 +152,15 @@ export const modsFor = (mine: GambleState, theirs: GambleState): Mods => {
       m.reach = 1.6;
       m.pointValue = 2;
       m.timingWindow = 1.5;
+      break;
+    case "curve":
+      m.curve = true;
+      break;
+    case "slowmo":
+      m.slowIncoming = true;
+      break;
+    case "smasher":
+      m.easySmash = true;
       break;
     default:
       break;

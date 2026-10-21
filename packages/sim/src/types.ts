@@ -14,6 +14,11 @@ export interface MatchConfig {
   firstServer?: Side;
   /** Kecepatan bat maksimum per pemain (m/s); AI memakai nilai sesuai tingkat. */
   batSpeed?: [number, number];
+  /**
+   * Pengali sebaran pukulan per pemain (1 = normal). Hanya untuk AI lokal sebagai bagian
+   * dari tingkat kesulitan; pertandingan online selalu [1, 1].
+   */
+  control?: [number, number];
   /** Mode Gamble: kumpulkan stack lalu putar roulette kemampuan. */
   gamble?: boolean;
   /** Lewati hitung mundur (dipakai test). */

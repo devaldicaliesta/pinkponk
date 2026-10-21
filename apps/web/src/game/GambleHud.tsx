@@ -63,14 +63,14 @@ export const OpponentGamble = ({ g }: { g: GambleView }) => (
   </div>
 );
 
-/** Roulette berputar sebentar lalu menampilkan kemampuan yang didapat. */
 // Di Timing Smash bat bergerak sendiri, jadi efek jangkauan/kecepatan bat diganti lebar
 // jendela timing; deskripsinya pun berbeda.
-const TIMING_DESC = ["giant", "magnet", "freeze", "jinx", "jackpot"] as const;
+const TIMING_DESC = ["giant", "magnet", "freeze", "jinx", "jackpot", "smasher"] as const;
 type TimingDescAbility = (typeof TIMING_DESC)[number];
 const hasTimingDesc = (a: Ability): a is TimingDescAbility =>
   (TIMING_DESC as readonly Ability[]).includes(a);
 
+/** Roulette berputar sebentar lalu menampilkan kemampuan yang didapat. */
 export const Roulette = ({
   info,
   you,
@@ -120,7 +120,7 @@ export const Roulette = ({
     <div
       class={`roulette roulette--${landed ? tone(info.ability) : "spin"}`}
       data-testid="roulette"
-      aria-live="assertive"
+      aria-live="polite"
     >
       <span class="roulette__who">{who}</span>
       <span class="roulette__name">{t(`ability.${ability}`)}</span>

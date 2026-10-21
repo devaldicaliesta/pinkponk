@@ -61,6 +61,7 @@ export const App = () => {
             difficulty,
             [nick, "AI"],
             mode === "gamble",
+            r.personality,
           );
     setScreen({ name: "game", session, module });
   };

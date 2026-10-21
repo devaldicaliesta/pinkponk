@@ -181,6 +181,13 @@ export class GameRenderer {
     a.mat.needsUpdate = true;
   }
 
+  /** Ancang-ancang smash (bat terangkat) sebelum bola tiba; pukulan sebenarnya menimpanya. */
+  windup(side: Side, now: number): void {
+    const a = this.avatars[side];
+    if (a.pose === "ready" || a.pose === "idle") this.setPose(a, "smash", now);
+    if (a.pose === "smash") a.poseUntil = Math.max(a.poseUntil, now + 120);
+  }
+
   setPov(pov: Pov): void {
     this.pov = pov;
   }
@@ -227,6 +234,7 @@ export class GameRenderer {
         const color = smash || !c.dark ? c.pink : c.lime;
         this.effects.hit(b.x * f, b.y, b.z * f, smash, color, now);
       }
+      if (e.shot === "loop" || e.shot === "curve") this.trailUntil = now + 500;
       if (e.shot === "smash") {
         this.setPose(a, "smash", now);
         a.arm.kick("smash", this.opts.reducedMotion);

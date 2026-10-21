@@ -15,6 +15,7 @@ export interface Progress {
   abilities: number;
   jackpots: number;
   hardWins: number;
+  legendWins: number;
   onlineWins: number;
   gambleWins: number;
   achievements: string[];
@@ -36,6 +37,7 @@ export interface MatchSummary {
 export const ACHIEVEMENTS = [
   "first-win",
   "hard-win",
+  "legend-win",
   "rally-15",
   "perfect-10",
   "jackpot",
@@ -59,6 +61,7 @@ export const emptyProgress = (): Progress => ({
   abilities: 0,
   jackpots: 0,
   hardWins: 0,
+  legendWins: 0,
   onlineWins: 0,
   gambleWins: 0,
   achievements: [],
@@ -81,7 +84,7 @@ export const sanitizeProgress = (raw: unknown): Progress => {
   return p;
 };
 
-const DIFFICULTY_BONUS: Record<Difficulty, number> = { easy: 1, medium: 1.5, hard: 2 };
+const DIFFICULTY_BONUS: Record<Difficulty, number> = { easy: 1, medium: 1.5, hard: 2, legend: 3 };
 
 export const xpFor = (s: MatchSummary): number => {
   const mult = s.kind === "online" ? 2 : s.difficulty ? DIFFICULTY_BONUS[s.difficulty] : 1;
@@ -106,6 +109,7 @@ const unlocked = (p: Progress, s: MatchSummary): AchievementId[] => {
   const checks: Record<AchievementId, boolean> = {
     "first-win": p.wins >= 1,
     "hard-win": p.hardWins >= 1,
+    "legend-win": p.legendWins >= 1,
     "rally-15": s.longestRally >= 15,
     "perfect-10": s.perfects >= 10,
     jackpot: p.jackpots >= 1,
@@ -138,7 +142,10 @@ export const applyMatch = (prev: Progress, s: MatchSummary): MatchReward => {
     perfects: prev.perfects + s.perfects,
     abilities: prev.abilities + s.abilities,
     jackpots: prev.jackpots + (s.jackpot ? 1 : 0),
-    hardWins: prev.hardWins + (s.won && s.difficulty === "hard" ? 1 : 0),
+    // Mengalahkan Legenda juga berarti mengalahkan tingkat Sulit.
+    hardWins:
+      prev.hardWins + (s.won && (s.difficulty === "hard" || s.difficulty === "legend") ? 1 : 0),
+    legendWins: prev.legendWins + (s.won && s.difficulty === "legend" ? 1 : 0),
     onlineWins: prev.onlineWins + (s.won && s.kind === "online" ? 1 : 0),
     gambleWins: prev.gambleWins + (s.won && s.gamble ? 1 : 0),
     achievements: [...prev.achievements],

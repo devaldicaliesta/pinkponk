@@ -1,7 +1,7 @@
 // Chunk game: dimuat hanya saat pertandingan dimulai (berisi Three.js).
 import "../styles/game.css";
 import type { RoomConfig } from "@pinkponk/protocol";
-import type { BestOf, Difficulty, PlayMode, Side } from "@pinkponk/sim";
+import type { BestOf, Difficulty, Personality, PlayMode, Side } from "@pinkponk/sim";
 import type { NetClient } from "../net/client";
 import { getSettings } from "../state/settings";
 import { CombinedInput, KEYS_P1, KEYS_P2, KEYS_SOLO } from "./input";
@@ -18,11 +18,13 @@ export const createAiSession = (
   difficulty: Difficulty,
   names: [string, string],
   gamble = false,
+  personality: Personality = "allround",
 ) =>
   new LocalSession({
     mode,
     bestOf,
     difficulty,
+    personality,
     names,
     gamble,
     inputs: [
@@ -37,6 +39,7 @@ export const createLocalSession = (bestOf: BestOf, names: [string, string]) =>
     mode: "swing",
     bestOf,
     difficulty: null,
+    personality: "allround",
     names,
     inputs: [
       new CombinedInput({ element: surface(), keys: KEYS_P1, pointer: false, gamepad: true }),

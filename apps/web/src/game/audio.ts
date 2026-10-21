@@ -17,7 +17,11 @@ export type Sfx =
   | "ability"
   | "jinx"
   | "shield"
-  | "stackFull";
+  | "stackFull"
+  | "loop"
+  | "chop"
+  | "drop"
+  | "moment";
 
 let ctx: AudioContext | null = null;
 let noise: AudioBuffer | null = null;
@@ -150,6 +154,23 @@ export const play = (sfx: Sfx): void => {
     case "stackFull":
       tone(c, 988, 0.08, "square", 0.08);
       tone(c, 1319, 0.12, "square", 0.08, 0.08);
+      break;
+    // Tiap jenis pukulan punya warna bunyi sendiri agar spin terdengar sebelum terlihat.
+    case "loop":
+      tone(c, 700, 0.1, "triangle", 0.22, 0, 1400);
+      burst(c, 0.06, 0.2, 3500);
+      break;
+    case "chop":
+      tone(c, 1100, 0.1, "triangle", 0.2, 0, 500);
+      burst(c, 0.05, 0.18, 1400);
+      break;
+    case "drop":
+      tone(c, 1500, 0.04, "sine", 0.16);
+      break;
+    case "moment":
+      [1047, 1319, 1568].forEach((f, i) => {
+        tone(c, f, 0.12, "sine", 0.16, i * 0.05);
+      });
       break;
   }
 };

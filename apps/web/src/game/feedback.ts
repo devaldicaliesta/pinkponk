@@ -1,6 +1,7 @@
-import type { Ability, FaultReason, MatchEvent, Side, TimingGrade } from "@pinkponk/sim";
+import type { Ability, FaultReason, MatchEvent, ShotKind, Side, TimingGrade } from "@pinkponk/sim";
 import { getSettings } from "../state/settings";
 import { play, vibrate } from "./audio";
+import { type Moment, MomentTracker } from "./moments";
 import type { GameRenderer } from "./renderer";
 import type { MatchView } from "./session";
 
@@ -31,7 +32,20 @@ export interface RouletteInfo {
 
 /** Lama roulette berputar sebelum hasilnya diumumkan (ms). */
 export const ROULETTE_SPIN_MS = 900;
-const ROULETTE_SHOW_MS = 2600;
+const ROULETTE_SHOW_MS = 2000;
+
+/** Pukulan yang namanya diumumkan di layar; drive dan block biasa tidak perlu. */
+export type CalledShot = "smash" | "loop" | "chop" | "drop" | "curve" | "lob";
+const CALLED: readonly ShotKind[] = ["smash", "loop", "chop", "drop", "curve", "lob"];
+const isCalled = (s: ShotKind): s is CalledShot => CALLED.includes(s);
+
+const SHOT_SFX: Partial<Record<ShotKind, "smash" | "loop" | "chop" | "drop">> = {
+  smash: "smash",
+  loop: "loop",
+  curve: "loop",
+  chop: "chop",
+  drop: "drop",
+};
 
 const gradeSound = (g: TimingGrade) =>
   g === "perfect" ? "perfect" : g === "great" ? "great" : g === "miss" ? "miss" : "hit";
@@ -46,6 +60,8 @@ export class Feedback {
   emoji: { key: number; player: Side; e: number } | null = null;
   roulette: RouletteInfo | null = null;
   shield: { key: number; player: Side } | null = null;
+  shot: { key: number; shot: CalledShot; mine: boolean } | null = null;
+  moment: (Moment & { key: number; mine: boolean }) | null = null;
   /** Waktu (performance.now) sampai simulasi lokal ditahan / diperlambat. */
   stopUntil = 0;
   slowUntil = 0;
@@ -56,7 +72,10 @@ export class Feedback {
   private emojiUntil = 0;
   private rouletteUntil = 0;
   private shieldUntil = 0;
+  private shotUntil = 0;
+  private momentUntil = 0;
   private key = 0;
+  private readonly moments = new MomentTracker();
 
   constructor(
     private readonly renderer: GameRenderer,
@@ -76,6 +95,12 @@ export class Feedback {
 
   handle(e: MatchEvent, now: number, view: MatchView): void {
     this.renderer.onEvent(e, now, view);
+    const moment = this.moments.feed(e, view.points);
+    if (moment) {
+      this.moment = { ...moment, key: ++this.key, mine: this.mine(moment.player) };
+      this.momentUntil = now + 1400;
+      play("moment");
+    }
     const haptics = getSettings().haptics;
     switch (e.type) {
       case "bounce":
@@ -85,7 +110,11 @@ export class Feedback {
         play("net");
         break;
       case "hit":
-        play(e.shot === "smash" ? "smash" : "hit");
+        play(SHOT_SFX[e.shot] ?? "hit");
+        if (isCalled(e.shot)) {
+          this.shot = { key: ++this.key, shot: e.shot, mine: this.mine(e.player) };
+          this.shotUntil = now + 650;
+        }
         if (this.mine(e.player)) vibrate(e.shot === "smash" ? 40 : 12, haptics);
         if (e.shot === "smash" && e.grade === "perfect" && this.canSlowTime) {
           this.stopUntil = now + 60;
@@ -93,6 +122,8 @@ export class Feedback {
         }
         break;
       case "judge":
+        // Penilaian lawan tidak ditampilkan: yang penting bagi pemain adalah timing-nya sendiri.
+        if (!this.mine(e.player)) break;
         this.judge = { key: ++this.key, grade: e.grade };
         this.judgeUntil = now + 450;
         play(gradeSound(e.grade));
@@ -144,6 +175,8 @@ export class Feedback {
     if (now > this.emojiUntil) this.emoji = null;
     if (now > this.rouletteUntil) this.roulette = null;
     if (now > this.shieldUntil) this.shield = null;
+    if (now > this.shotUntil) this.shot = null;
+    if (now > this.momentUntil) this.moment = null;
   }
 
   timeScale(now: number, base: number): number {

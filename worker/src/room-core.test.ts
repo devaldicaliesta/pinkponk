@@ -126,9 +126,9 @@ describe("RoomCore", () => {
     const a = join(room, "a", "Rara", true, gambleCfg);
     join(room, "b", "Budi", false, gambleCfg);
     expect(room.match?.config.gamble).toBe(true);
-    room.match!.players[1].gamble.stack = 6;
+    room.match!.players[1].gamble.stack = 4;
     advance(room, 200);
-    expect(a.snapshots().at(-1)?.gamble[1].stack).toBe(6);
+    expect(a.snapshots().at(-1)?.gamble[1].stack).toBe(4);
   });
 
   it("menolak bergabung ke room yang belum dibuat", () => {

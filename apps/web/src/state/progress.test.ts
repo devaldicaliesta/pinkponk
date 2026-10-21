@@ -45,6 +45,14 @@ describe("progres pemain", () => {
     expect(b.unlocked).not.toContain("first-win");
   });
 
+  it("menang lawan Legenda membuka pencapaian Legenda dan Sulit", () => {
+    const r = applyMatch(emptyProgress(), match({ difficulty: "legend" }));
+    expect(r.unlocked).toEqual(expect.arrayContaining(["hard-win", "legend-win"]));
+    expect(xpFor(match({ difficulty: "legend" }))).toBeGreaterThan(
+      xpFor(match({ difficulty: "hard" })),
+    );
+  });
+
   it("rentetan kemenangan dan reset saat kalah", () => {
     let p = emptyProgress();
     for (let i = 0; i < 3; i++) p = applyMatch(p, match()).progress;

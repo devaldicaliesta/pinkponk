@@ -1,8 +1,9 @@
 import { EMOJIS } from "@pinkponk/protocol";
 import type { FaultReason, Side, TimingGrade } from "@pinkponk/sim";
 import { useT } from "../i18n";
-import type { RouletteInfo } from "./feedback";
+import type { CalledShot, RouletteInfo } from "./feedback";
 import { GambleBar, OpponentGamble, Roulette } from "./GambleHud";
+import type { Moment } from "./moments";
 import type { MatchView, NetStatus, SessionKind } from "./session";
 
 export interface HudState {
@@ -17,6 +18,8 @@ export interface HudState {
   emoji: { key: number; player: Side; e: number } | null;
   roulette: RouletteInfo | null;
   shield: { key: number; player: Side } | null;
+  shot: { key: number; shot: CalledShot; mine: boolean } | null;
+  moment: (Moment & { key: number; mine: boolean }) | null;
 }
 
 interface Props {
@@ -100,6 +103,18 @@ export const Hud = ({
   const right: Side = left === 0 ? 1 : 0;
   const ping = state.net?.pingMs ?? null;
   const showServe = v.phase === "serve" || v.phase === "toss";
+  // Roulette tampil kecil di dekat pemiliknya (bawah untuk kita, bawah skor lawan untuk lawan)
+  // sehingga meja dan bola tetap terlihat selama berputar.
+  const roulette = state.roulette && (
+    <Roulette
+      key={state.roulette.key}
+      info={state.roulette}
+      you={you}
+      reduced={reducedMotion}
+      timing={timing}
+    />
+  );
+  const rouletteMine = state.roulette !== null && (you === null || state.roulette.player === you);
 
   return (
     <div class="hud" aria-live="polite">
@@ -149,6 +164,15 @@ export const Hud = ({
             </div>
           )}
           {state.fever && <div class="fever">{t("game.fever")}</div>}
+          {state.moment && (
+            <div
+              key={state.moment.key}
+              class={`moment${state.moment.mine ? " moment--mine" : ""}`}
+              data-testid="moment"
+            >
+              {t(`moment.${state.moment.kind}`, { n: state.moment.n })}
+            </div>
+          )}
         </div>
         <div class="hud__right">
           <ScoreCard
@@ -160,6 +184,7 @@ export const Hud = ({
             you={false}
           />
           {gamble && <OpponentGamble g={v.gamble[right]} />}
+          {!rouletteMine && roulette}
         </div>
       </div>
 
@@ -174,15 +199,6 @@ export const Hud = ({
             {t(`game.reason.${state.toast.reason}`)}
           </div>
         )}
-        {state.roulette && (
-          <Roulette
-            key={state.roulette.key}
-            info={state.roulette}
-            you={you}
-            reduced={reducedMotion}
-            timing={timing}
-          />
-        )}
         {state.shield && (
           <div key={state.shield.key} class="hud__toast hud__toast--shield">
             {t("gamble.shield")}
@@ -196,16 +212,33 @@ export const Hud = ({
       </div>
 
       <div class="hud__bottom">
-        {/* Penilaian timing di bawah agar tidak menutupi bola di tengah layar. */}
-        {state.judge && (
-          <div
-            key={state.judge.key}
-            class={`judge judge--${state.judge.grade}`}
-            data-testid="judge"
-          >
-            {state.judge.grade.toUpperCase()}
+        {/*
+          Penilaian timing, nama pukulan, dan roulette kita melayang tepat di atas bar bawah:
+          tidak menutupi bola dan tidak menggeser tombol saat muncul/hilang.
+        */}
+        <div class="hud__float">
+          {rouletteMine && roulette}
+          <div class="callouts">
+            {state.judge && (
+              <div
+                key={state.judge.key}
+                class={`judge judge--${state.judge.grade}`}
+                data-testid="judge"
+              >
+                {state.judge.grade.toUpperCase()}
+              </div>
+            )}
+            {state.shot && (
+              <div
+                key={state.shot.key}
+                class={`shot-call shot-call--${state.shot.shot}${state.shot.mine ? "" : " shot-call--them"}`}
+                data-testid="shot-call"
+              >
+                {t(`shot.${state.shot.shot}`)}
+              </div>
+            )}
           </div>
-        )}
+        </div>
         {state.serveHint && (
           <div class="glass hud__hint" data-testid="serve-hint">
             {state.serveHint === "tap"

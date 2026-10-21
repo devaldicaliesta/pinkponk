@@ -28,11 +28,20 @@ jalan di setiap PR ke `production` dan setiap malam di `development`.
   yang dihitung, tap > 250 ms terlalu awal = MISS, offset kalibrasi diterapkan,
   combo → Fever.
 - AI: parameter tiap tingkat dipakai; AI tidak pernah bergerak melebihi kecepatan maks.
+  Urutan kekuatan Mudah < Sedang < Sulit < Legenda dicek lewat alat kalibrasi
+  (`tune.stress.ts`, manual) dan test AI vs AI.
+- Pukulan: klasifikasi tenaga/arah → smash/loop/chop/drop/lob/drive/block; tiap jenis
+  mendarat di meja untuk banyak seed; bola melengkung punya sidespin.
 - Nickname: panjang, karakter yang diizinkan, filter kata kasar, akhiran `#2`.
-- Gamble: stack maks 6, roulette hanya hasil sah dan semua irisan muncul, kemampuan
+- Gamble: stack maks 5 dan hanya bertambah dari PERFECT (titik manis bat atau timing),
+  bukan dari pukulan biasa/poin; Curi mengambil ≤ 3 stack lawan; Zona Lambat memperlambat
+  bola yang datang; roulette hanya hasil sah dan semua irisan muncul, kemampuan
   habis tepat waktu, poin ganda tidak melewati akhir game, perisai menyelamatkan sekali,
   tombol diabaikan di mode biasa, AI vs AI gamble deterministik, bola hantu menyulitkan AI.
 - Golden point di 14–14.
+- Momen (web, `moments.test.ts`): net masuk, servis kena net bukan momen, edge ball hanya
+  di sisi lawan, smash dikembalikan, reli tiap 10 pukulan, comeback setelah tertinggal 4.
+- Protokol: semua jenis pukulan dan kemampuan round-trip di snapshot biner (versi 3).
 - Gamble di Timing Smash: jendela timing melebar/menyempit sesuai kemampuan, tap 140 ms
   terlambat GOOD biasa → GREAT dengan Bat Raksasa, AI vs AI timing gamble selesai.
 
@@ -59,6 +68,7 @@ jalan di setiap PR ke `production` dan setiap malam di `development`.
 | G5 | Cari lawan acak bisa dibatalkan | |
 | G6 | Gamble dengan gaya Timing Smash: roulette lalu tap dinilai | Juga di viewport HP |
 | H1 | Label match point di bagian atas layar, tidak menutupi tengah | Juga di viewport HP |
+| A1 | Vs AI Legenda bergaya Tukang smash: pilihan tampil, pertandingan sampai selesai | |
 
 Status: 29 test E2E lulus (proyek `desktop` semua test, `mobile` test bertanda
 `@mobile`). Browser di CI: Chromium dengan WebGL perangkat lunak (SwiftShader);

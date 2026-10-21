@@ -53,6 +53,8 @@ const initialHud = (session: Session): HudState => ({
   emoji: null,
   roulette: null,
   shield: null,
+  shot: null,
+  moment: null,
 });
 
 const snapshotHud = (s: HudState): HudState => ({
@@ -81,6 +83,8 @@ const hudKey = (s: HudState): string =>
     s.emoji?.key,
     s.roulette?.key,
     s.shield?.key,
+    s.shot?.key,
+    s.moment?.key,
     s.view.gamble.map((g) => `${g.stack}${g.ability}${g.pointsLeft}${g.armed}`).join(),
     s.net
       ? `${Math.round((s.net.pingMs ?? 0) / 10)}|${s.net.paused?.reason}|${s.net.pausesLeft.join()}|${s.net.opponentLeft}|${s.net.reconnecting}|${s.net.rematch.join()}`
@@ -184,6 +188,10 @@ const GameView = ({ session, onExit }: Props) => {
       session.update(now);
       const view = session.view();
       for (const e of session.drainEvents()) feedback.handle(e, now, view);
+      if (session instanceof LocalSession) {
+        const side = session.aiWindup();
+        if (side !== null) renderer.windup(side, now);
+      }
       feedback.expire(now);
       const fever = session.you !== null ? view.fever[session.you] : view.fever[0] || view.fever[1];
       renderer.render(view, now, ringFor(session), fever);
@@ -220,6 +228,8 @@ const GameView = ({ session, onExit }: Props) => {
         emoji: feedback.emoji,
         roulette: feedback.roulette,
         shield: feedback.shield,
+        shot: feedback.shot,
+        moment: feedback.moment,
       };
       if (session.gamble && session.you !== null) {
         const stack = view.gamble[session.you].stack;

@@ -10,7 +10,7 @@ export interface RoomConfig {
  * Versi protokol. Naikkan setiap format pesan berubah: client lama (misalnya dari cache
  * service worker) ditolak dengan kode "outdated" dan diminta memuat ulang.
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 export const EMOJIS = ["👍", "🔥", "😂", "😮", "😤", "👏"] as const;
 

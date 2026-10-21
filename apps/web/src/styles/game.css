@@ -224,12 +224,83 @@
 }
 
 .hud__bottom {
+  position: relative;
   text-align: center;
   min-height: 48px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--s2);
+}
+
+.hud__float {
+  position: absolute;
+  bottom: calc(100% + var(--s2));
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s1);
+  pointer-events: none;
+}
+
+.callouts {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--s3);
+  min-height: 1em;
+}
+
+.shot-call {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  animation: judge 600ms var(--ease) both;
+}
+
+.shot-call--smash {
+  color: var(--pink);
+  text-shadow: var(--glow-sm);
+}
+
+.shot-call--loop,
+.shot-call--curve {
+  color: var(--lime-text);
+}
+
+.shot-call--chop,
+.shot-call--drop {
+  color: var(--cyan);
+}
+
+.shot-call--them {
+  font-size: 15px;
+  opacity: 0.75;
+}
+
+.moment {
+  padding: 2px var(--s3);
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  color: var(--text);
+  background: var(--surface-glass);
+  border: 1.5px solid var(--border);
+  animation: pop 220ms var(--ease);
+}
+
+.moment--mine {
+  color: var(--gold);
+  border-color: currentColor;
+  text-shadow: 0 0 12px var(--gold);
 }
 
 .hud__hint {
@@ -472,21 +543,29 @@
   background: var(--surface-glass);
 }
 
+/* Pil ringkas, bukan panel di tengah layar: permainan tetap terlihat selama roulette. */
 .roulette {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: var(--s2) var(--s5);
-  border-radius: 18px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  column-gap: var(--s2);
+  padding: var(--s1) var(--s3);
+  border-radius: 999px;
   background: var(--surface-glass);
   border: 2px solid var(--border);
   text-align: center;
-  max-width: min(90vw, 26em);
+  max-width: min(92vw, 30em);
+  pointer-events: none;
+}
+
+.hud__right .roulette {
+  max-width: min(46vw, 18em);
+  border-radius: 14px;
 }
 
 .roulette__who {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -494,13 +573,18 @@
 
 .roulette__name {
   font-family: var(--font-display);
-  font-size: 34px;
-  line-height: 1.05;
+  font-size: 20px;
+  line-height: 1.1;
   text-transform: uppercase;
 }
 
 .roulette__desc {
-  font-size: 13px;
+  flex-basis: 100%;
+  font-size: 12px;
+}
+
+.hud__right .roulette__desc {
+  display: none;
 }
 
 .roulette--spin .roulette__name {
@@ -587,7 +671,7 @@
 
 @media (max-width: 420px) {
   .roulette__name {
-    font-size: 26px;
+    font-size: 17px;
   }
 
   .gamble-btn {

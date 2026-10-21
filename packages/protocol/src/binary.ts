@@ -4,6 +4,7 @@ import {
   type MatchEvent,
   type MatchPhase,
   type PlayerInput,
+  type ShotKind,
   type Side,
   STACK_MAX,
 } from "@pinkponk/sim";
@@ -114,7 +115,19 @@ interface Vec {
   z: number;
 }
 
-const SHOTS = ["serve", "block", "drive", "smash", "lob", "weak"] as const;
+// Urutan mengikuti ShotKind di sim; hanya boleh ditambah di akhir (4 bit, maks 16).
+const SHOTS = [
+  "serve",
+  "block",
+  "drive",
+  "smash",
+  "lob",
+  "weak",
+  "loop",
+  "chop",
+  "drop",
+  "curve",
+] as const satisfies readonly ShotKind[];
 const GRADES = ["perfect", "great", "good", "early", "late", "miss"] as const;
 const REASONS = [
   "serve-fault",

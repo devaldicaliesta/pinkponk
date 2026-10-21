@@ -24,8 +24,8 @@ import {
   modsFor,
   NO_MODS,
   rollAbility,
-  STACK_PER_POINT,
-  STACK_PER_RETURN,
+  STACK_PER_PERFECT,
+  STEAL_MAX,
   tickPoint,
 } from "./gamble";
 import { sanitizeInput } from "./input";
@@ -41,7 +41,14 @@ import {
   startServe,
 } from "./rules";
 import { awardPoint, createScore, currentServer, other, type Score } from "./score";
-import { type Shot, swingShot, timingShot } from "./shots";
+import {
+  type Shot,
+  type ShotBoost,
+  SWEET_MIN_POWER,
+  SWEET_SPOT,
+  swingShot,
+  timingShot,
+} from "./shots";
 import { solveServe } from "./solver";
 import {
   FEVER_MS,
@@ -278,6 +285,12 @@ export class Match {
     const toward: Side = this.ball.pos.z > 0 ? 0 : 1;
     if (toward === rally.lastHitter) return;
     this.players[toward].armMs = atMs;
+    if (this.mods(toward).slowIncoming) {
+      // Zona Lambat: bola melambat begitu masuk ke sisi pemilik kemampuan.
+      this.ball.vel.x *= 0.7;
+      this.ball.vel.z *= 0.7;
+      this.updateAutoTargets();
+    }
   }
 
   private applyContact(rally: Rally, contact: BallContact): RallyResult {
@@ -321,14 +334,20 @@ export class Match {
       if (!this.shieldSave(pending)) this.missPending(pending, null);
       return;
     }
+    // Akurasi tepi bat diukur relatif terhadap jangkauan bat saat ini.
+    const relOffset = offset / mods.reach;
     const shot = swingShot(
       pending.ball.pos,
       pending.player,
-      // Akurasi tepi bat diukur relatif terhadap jangkauan bat saat ini.
-      { aim: input.aim, lift: input.lift, power: input.power, offset: offset / mods.reach },
+      { aim: input.aim, lift: input.lift, power: input.power, offset: relOffset },
       this.rng,
-      { speed: mods.shotSpeed, sigma: mods.sigma },
+      this.boostOf(pending.player, mods),
     );
+    // Kena titik manis bat dengan ayunan sungguhan = PERFECT (mengisi stack Gamble).
+    if (relOffset <= SWEET_SPOT * REACH && input.power >= SWEET_MIN_POWER) {
+      this.events.push({ type: "judge", player: pending.player, grade: "perfect" });
+      this.addPerfectStack(pending.player);
+    }
     this.applyHit(pending, shot, null);
   }
 
@@ -356,8 +375,8 @@ export class Match {
       return;
     }
     const fever = this.inFever(pending.player) && grade === "perfect" ? 1.15 : 1;
-    const boost = this.mods(pending.player).shotSpeed;
-    const factor = rallySpeedFactor(this.rally?.hits ?? 0) * fever * boost;
+    const factor = rallySpeedFactor(this.rally?.hits ?? 0) * fever;
+    if (grade === "perfect") this.addPerfectStack(pending.player);
     const shot = timingShot(
       pending.ball.pos,
       pending.player,
@@ -365,6 +384,7 @@ export class Match {
       slot.latest.aim,
       factor,
       this.rng,
+      this.boostOf(pending.player, this.mods(pending.player)),
     );
     this.events.push({ type: "judge", player: pending.player, grade });
     this.trackStreak(pending.player, grade);
@@ -392,7 +412,6 @@ export class Match {
     this.players[pending.player].taps = [];
     this.players[pending.player].armMs = Number.POSITIVE_INFINITY;
     this.lastHitTick = pending.tick;
-    if (this.config.gamble) addStack(this.players[pending.player].gamble, STACK_PER_RETURN);
     this.events.push({ type: "hit", player: pending.player, shot: shot.kind, grade });
     // Pukulan terjadi di tick `pending.tick`; majukan bola ke tick sekarang.
     this.ball = copyBall(pending.ball);
@@ -456,7 +475,7 @@ export class Match {
     if (this.mods(result.winner).pointValue > 1 && outcome.gameWon === null) {
       outcome = awardPoint(this.score, result.winner);
     }
-    this.finishPointGamble(result.winner);
+    this.finishPointGamble();
     if (outcome.gameWon !== null) this.events.push({ type: "game", winner: outcome.gameWon });
     if (outcome.matchWon !== null) {
       this.winner = outcome.matchWon;
@@ -497,12 +516,28 @@ export class Match {
     }
   }
 
+  private boostOf(p: Side, m: Mods): ShotBoost {
+    const control = this.config.control?.[p] ?? 1;
+    return { speed: m.shotSpeed, sigma: m.sigma * control, curve: m.curve, easySmash: m.easySmash };
+  }
+
+  private addPerfectStack(p: Side): void {
+    if (this.config.gamble) addStack(this.players[p].gamble, STACK_PER_PERFECT);
+  }
+
   private activateAbility(p: Side): void {
     const g = this.players[p].gamble;
     g.armed = false;
     if (!canActivate(g)) return;
     const { ability, points } = rollAbility(this.rng);
     g.stack = 0;
+    if (ability === "steal") {
+      // Curi: ambil sebagian stack lawan; berlaku seketika.
+      const opp = this.players[other(p)].gamble;
+      const taken = Math.min(STEAL_MAX, opp.stack);
+      opp.stack -= taken;
+      g.stack = taken;
+    }
     g.ability = ability;
     g.pointsLeft = points;
     g.shieldUsed = false;
@@ -524,9 +559,8 @@ export class Match {
     return true;
   }
 
-  private finishPointGamble(winner: Side): void {
+  private finishPointGamble(): void {
     if (!this.config.gamble) return;
-    addStack(this.players[winner].gamble, STACK_PER_POINT);
     tickPoint(this.players[0].gamble);
     tickPoint(this.players[1].gamble);
   }

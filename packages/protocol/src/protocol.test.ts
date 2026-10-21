@@ -1,3 +1,4 @@
+import { ABILITIES } from "@pinkponk/sim";
 import { describe, expect, it } from "vitest";
 import {
   decodeInput,
@@ -48,12 +49,40 @@ const snapshot: Snapshot = {
     { type: "net" },
     { type: "ability", player: 1, ability: "freeze", points: 2 },
     { type: "shield", player: 0 },
+    { type: "hit", player: 1, shot: "curve", grade: "great" },
+    { type: "ability", player: 0, ability: "smasher", points: 1 },
   ],
 };
 
 describe("protokol biner", () => {
   it("snapshot round-trip", () => {
     expect(decodeSnapshot(encodeSnapshot(snapshot))).toEqual(snapshot);
+  });
+
+  it("semua jenis pukulan dan kemampuan round-trip", () => {
+    const shots = [
+      "serve",
+      "block",
+      "drive",
+      "smash",
+      "lob",
+      "weak",
+      "loop",
+      "chop",
+      "drop",
+      "curve",
+    ] as const;
+    const events: Snapshot["events"] = [
+      ...shots.map((shot) => ({ type: "hit" as const, player: 0 as const, shot, grade: null })),
+      ...ABILITIES.map((ability) => ({
+        type: "ability" as const,
+        player: 1 as const,
+        ability,
+        points: 2,
+      })),
+    ];
+    const s = { ...snapshot, events };
+    expect(decodeSnapshot(encodeSnapshot(s))).toEqual(s);
   });
 
   it("snapshot dengan pemenang", () => {

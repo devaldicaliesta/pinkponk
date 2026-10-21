@@ -15,6 +15,26 @@ test("E2: Vs AI Mudah dimainkan sampai pertandingan selesai", async ({ open }) =
   expect(errors).toEqual([]);
 });
 
+test("Vs AI Legenda bergaya Tukang smash bisa dimainkan sampai selesai", async ({ open }) => {
+  const { page, errors } = await open();
+  await page.goto("/");
+  await page.getByTestId("mode-ai").click();
+  await page.getByRole("button", { name: "Legenda", exact: true }).click();
+  await page.getByRole("button", { name: "Tukang smash", exact: true }).click();
+  await expect(page.getByText("pura-pura smash")).toBeVisible();
+  await page.getByRole("button", { name: "Best of 1" }).click();
+  await page.getByTestId("start").click();
+  await page.getByTestId("game-canvas").waitFor();
+  await page.waitForFunction(() => typeof window.__pp?.view === "function");
+  await page.evaluate(() => {
+    window.__pp.autoplay();
+    window.__pp.setTimeScale(16);
+  });
+  await waitForPhase(page, "over", 120_000);
+  await expect(page.getByTestId("result")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test("E3: kamera bisa diganti ke semua POV saat bermain", async ({ open }) => {
   const { page, errors } = await open();
   await startAiGame(page, "ai");

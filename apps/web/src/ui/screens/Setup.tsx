@@ -1,4 +1,11 @@
-import type { BestOf, Difficulty, PlayMode } from "@pinkponk/sim";
+import {
+  type BestOf,
+  DIFFICULTIES,
+  type Difficulty,
+  PERSONALITIES,
+  type Personality,
+  type PlayMode,
+} from "@pinkponk/sim";
 import { useState } from "preact/hooks";
 import { useT } from "../../i18n";
 import { getSettings, type Pov, updateSettings } from "../../state/settings";
@@ -7,6 +14,7 @@ import { TopBar } from "../components/TopBar";
 
 export interface SetupResult {
   difficulty: Difficulty;
+  personality: Personality;
   bestOf: BestOf;
   /** Gaya main untuk mode Gamble (ayunan atau Timing Smash). */
   style: PlayMode;
@@ -21,6 +29,7 @@ interface Props {
 export const Setup = ({ mode, onStart, onBack }: Props) => {
   const t = useT();
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  const [personality, setPersonality] = useState<Personality>("allround");
   const [bestOf, setBestOf] = useState<BestOf>(mode === "timing" ? 1 : 3);
   const [style, setStyle] = useState<PlayMode>("swing");
   const timing = mode === "timing" || (mode === "gamble" && style === "timing");
@@ -50,12 +59,18 @@ export const Setup = ({ mode, onStart, onBack }: Props) => {
             label={t("setup.difficulty")}
             value={difficulty}
             onChange={(v) => setDifficulty(v)}
-            options={(["easy", "medium", "hard"] as const).map((d) => ({
-              value: d,
-              label: t(`setup.${d}`),
-            }))}
+            options={DIFFICULTIES.map((d) => ({ value: d, label: t(`setup.${d}`) }))}
           />
         )}
+        {mode !== "local" && (
+          <Chips
+            label={t("setup.personality")}
+            value={personality}
+            onChange={(v) => setPersonality(v)}
+            options={PERSONALITIES.map((p) => ({ value: p, label: t(`ai.${p}`) }))}
+          />
+        )}
+        {mode !== "local" && <p class="muted">{t(`ai.${personality}.desc`)}</p>}
         <Chips
           label={t("setup.bestOf")}
           value={bestOf}
@@ -85,7 +100,7 @@ export const Setup = ({ mode, onStart, onBack }: Props) => {
           data-testid="start"
           onClick={() => {
             updateSettings({ pov });
-            onStart({ difficulty, bestOf, style });
+            onStart({ difficulty, personality, bestOf, style });
           }}
         >
           {t("setup.start")}
