@@ -1,0 +1,26 @@
+# CLAUDE.md
+
+PinkPonk: game ping pong web (Vs AI, lokal 2 pemain, online 1v1, Timing Smash),
+tanpa database, di Cloudflare (`pinkponk.my.id`).
+
+## Baca dulu
+
+- `docs/PRD.md` — apa yang dibangun dan prioritasnya (§17 urutan rilis, §18 keputusan).
+- Dokumen lain hanya bila task menyentuhnya: `DESIGN.md` (UI), `ARCHITECTURE.md`
+  (struktur/netcode), `QA.md` (test), `SECURITY.md` (worker, protokol, header),
+  `DEPLOY.md` (CI/CD, domain).
+
+## Aturan
+
+- Kerja di `development` atau branch fitur dari `development`. `production` hanya
+  lewat PR dari `development`.
+- Tidak ada database dan tidak ada penyimpanan server permanen.
+- `packages/sim` dan `packages/protocol` TypeScript murni (tanpa DOM); setiap
+  perubahan di sana wajib disertai unit test.
+- Client hanya mengirim input; hasil pertandingan dan penilaian timing ditentukan server.
+- Patuhi budget ukuran di `QA.md` §4; dependency baru wajib dijelaskan di PR.
+- Warna dan font hanya dari token di `DESIGN.md`; dukung tema gelap dan terang.
+- Tidak boleh ada logo/merek pihak lain di aset mana pun.
+- Teks UI lewat i18n (ID/EN), tidak di-hardcode.
+- Rahasia (API token Cloudflare) hanya di GitHub Secrets, tidak pernah di repo.
+- Sebelum PR: typecheck, lint (Biome), dan test hijau.

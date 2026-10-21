@@ -1,0 +1,60 @@
+# Security — PinkPonk
+
+## 1. Aset yang dilindungi
+
+- Ketersediaan layanan dan kuota Cloudflare (biaya).
+- Keadilan pertandingan online.
+- Pemain dari konten berbahaya (XSS lewat nickname, pelecehan).
+- Kredensial deploy (API token Cloudflare) dan domain `pinkponk.my.id`.
+
+Tidak ada data pribadi yang disimpan di server; nickname hanya hidup di memori
+room selama pertandingan.
+
+## 2. Threat model dan mitigasi
+
+| Ancaman | Mitigasi |
+|---------|----------|
+| XSS lewat nickname | Whitelist karakter di client **dan** server; selalu dirender sebagai teks (`textContent`); CSP tanpa `unsafe-inline` untuk skrip |
+| Cheat: client mengirim posisi/hasil palsu | Server-authoritative: client hanya mengirim input; server membatasi kecepatan bat dan ayunan, menilai timing sendiri |
+| Cheat: memalsukan cap waktu tap | Cap waktu dibatasi oleh RTT terukur dan offset jam; tap di luar ±RTT/2 dari waktu terima ditolak |
+| Menebak kode room | Kode 6 karakter dari 31 simbol (~887 juta kombinasi) + rate limit pembuatan/join per IP |
+| Spam pesan / DoS ke room | Batas ukuran pesan (256 B), maks 120 pesan/detik per koneksi, koneksi diputus bila melanggar; maks 2 pemain + 8 penonton per room |
+| Pembuatan room massal | Rate limit `POST /api/room` per IP (Cloudflare Rate Limiting rule) + room tanpa pemain dihapus setelah 60 detik |
+| WebSocket dari situs lain | Cek header `Origin`: hanya `pinkponk.my.id`, `dev.pinkponk.my.id`, localhost saat dev |
+| Pesan cacat | Decoder biner dengan validasi panjang/rentang; pesan JSON (kontrol) divalidasi zod; tolak dan tutup koneksi bila tidak valid |
+| Bocornya API token | Token hanya di GitHub Secrets; izin minimum dan dibatasi ke satu zone; rotasi tiap 90 hari; tidak pernah di repo atau log |
+| Supply chain | Lockfile wajib, Dependabot, `pnpm audit` di CI, pin versi GitHub Actions ke SHA |
+| Spoofing email domain | SPF `v=spf1 -all`, DMARC `p=reject`, tanpa MX |
+| Pelecehan di online | Tanpa chat teks bebas; hanya 6 emoji tetap; tombol bisukan reaksi lawan |
+| Clickjacking | `frame-ancestors 'none'` |
+
+## 3. Header HTTP (diset oleh Worker)
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self';
+  img-src 'self' data: blob:; font-src 'self'; connect-src 'self' wss://pinkponk.my.id wss://dev.pinkponk.my.id;
+  worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=(), gamepad=(self)
+Cross-Origin-Opener-Policy: same-origin
+```
+
+Skrip anti-kedip tema di `<head>` diizinkan lewat hash CSP (`'sha256-...'`),
+bukan `unsafe-inline`.
+
+## 4. Domain dan zone
+
+- SSL/TLS mode **Full (strict)**, Always Use HTTPS, HSTS aktif setelah situs stabil.
+- `dev.pinkponk.my.id` dilindungi Cloudflare Access (email pemilik) atau minimal
+  `X-Robots-Tag: noindex`.
+- DNSSEC diaktifkan di Cloudflare dan record DS dipasang di registrar.
+
+## 5. Proses
+
+- Branch `production` diproteksi: hanya lewat PR dari `development`, CI hijau,
+  tanpa force-push.
+- Setiap PR yang menyentuh `worker/` atau `packages/protocol` ditinjau khusus
+  untuk validasi input dan rate limit.
+- Laporan kerentanan: alamat email di `SECURITY.md` root repo (diisi pemilik).

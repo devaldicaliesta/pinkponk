@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PinkPonk">
+  
+  <rect width="512" height="512" rx="112" fill="#FFF5FA"/>
+  <!-- Huruf P: batang = gagang bat, mangkuk = muka bat, lubang = bola -->
+  <g stroke="#1A0F1F" stroke-width="16">
+    <rect x="148" y="190" width="72" height="230" rx="36"/><circle cx="276" cy="210" r="118"/></g>
+  <g fill="#D6006F" ><rect x="148" y="190" width="72" height="230" rx="36"/><circle cx="276" cy="210" r="118"/></g>
+  <circle cx="276" cy="210" r="44" fill="#C6FF3D" stroke="#1A0F1F" stroke-width="8"/>
+  <path d="M352 96c40-14 74-6 92 18M374 70c34-6 58 4 70 22" fill="none" stroke="#1A0F1F" stroke-width="12" stroke-linecap="round"/>
+</svg>
