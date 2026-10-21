@@ -68,3 +68,25 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 7
+
+  stress:
+    name: Uji beban (simulasi, room, antrean, leaderboard, fuzz, jaringan lokal)
+    needs: check
+    if: github.base_ref == 'production' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:stress
+      - name: Uji beban jaringan terhadap wrangler dev lokal
+        run: |
+          pnpm --filter @pinkponk/web build
+          pnpm --filter @pinkponk/worker exec wrangler dev --port 8787 > wrangler.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:8787/ > /dev/null && break; sleep 1; done
+          pnpm test:load --rooms 5 --seconds 15 --queue 5 --lb 50

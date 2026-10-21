@@ -64,7 +64,17 @@ PP_SITE=production pnpm build && pnpm deploy:production
 
 Butuh `CLOUDFLARE_API_TOKEN` di environment.
 
+## 2b. Migrasi Durable Object
+
+`worker/wrangler.jsonc` → `migrations`: `v1` membuat `Room`, `v2` membuat `Leaderboard`
+dan `Matchmaker` (keduanya SQLite-backed, tersedia di paket Free). Migrasi dijalankan
+otomatis oleh `wrangler deploy`; tidak ada langkah manual. Jangan mengubah atau
+menghapus tag yang sudah dideploy; perubahan kelas berikutnya = tag baru (`v3`, …).
+
+Rate limit baru `RL_LB` (namespace `2004` dev, `1004` produksi) juga dibuat otomatis.
+
 ## 3. Rollback
 
 `wrangler rollback --env production` ke versi sebelumnya, lalu revert commit di
-`production` lewat PR.
+`production` lewat PR. Catatan: rollback kode tidak menghapus data leaderboard; skema
+tabel dibuat dengan `CREATE TABLE IF NOT EXISTS` sehingga aman untuk versi lama/baru.

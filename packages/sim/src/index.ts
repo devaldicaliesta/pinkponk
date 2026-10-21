@@ -1,6 +1,7 @@
 export * from "./ai";
 export * from "./ball";
 export * from "./constants";
+export * from "./gamble";
 export * from "./input";
 export * from "./match";
 export * from "./nickname";

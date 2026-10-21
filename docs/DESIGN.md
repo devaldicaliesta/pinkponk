@@ -38,7 +38,8 @@ Gambar referensi tidak disimpan di repo karena hak ciptanya milik pihak lain.
 | `--pink-glow` | `rgb(255 46 154 / 0.55)` | `rgb(214 0 111 / 0.25)` | Glow/shadow |
 | `--lime` | `#C6FF3D` | `#C6FF3D` (latar) / `#4A7A00` (teks) | Sorotan, PERFECT, Fever |
 | `--cyan` | `#3DE8FF` | `#007C91` | Info, ping hijau-netral, pemain 2 |
-| `--danger` | `#FF5A5A` | `#C62828` | MISS, error |
+| `--danger` | `#FF5A5A` | `#C62828` | MISS, error, kemampuan "Sial!" |
+| `--gold` | `#FFD23D` | `#8A5F00` | JACKPOT, pencapaian, peringkat 1 (kontras terang ≈ 5,3 : 1) |
 | `--table` | `#1B2A6B` | `#2747C9` | Permukaan meja |
 | `--table-line` | `#FFFFFF` | `#FFFFFF` | Garis meja |
 | `--ball` | `#FFF8E7` | `#FF8A00` | Bola (di tema terang oranye agar kontras) |
@@ -139,6 +140,24 @@ glow diganti bayangan tipis + garis luar 2 px.
 - Umpan balik pukulan: kilatan di titik pukul (lebih besar dan pink saat smash), riak
   di titik pantul meja, skor "membal" saat bertambah. Semua dimatikan bila
   `prefers-reduced-motion`.
+
+## 7a. HUD mode Gamble dan layar peringkat
+
+- **Meter stack**: 6 kotak kecil (pip) di kiri bawah bersama tombol **GAMBLE**. Pip
+  terisi = pink + glow. Stack lawan ditampilkan kecil di bawah kartu skornya.
+- **Tombol GAMBLE** aktif hanya saat stack penuh; denyutnya lewat cahaya, bukan skala,
+  supaya tombol tidak bergeser saat disentuh. Petunjuk keyboard `Tekan E` disembunyikan
+  di layar sentuh.
+- **Roulette**: panel kaca di tengah; nama kemampuan berputar ±0,9 detik (melambat)
+  lalu berhenti di hasil server. Warna hasil: menguntungkan = lime, JACKPOT = gold,
+  "Sial!" = danger + getar kecil. *Reduced motion*: langsung tampil hasil.
+- **Aura** berdenyut di kaki robot selama kemampuan aktif (lime/gold/merah/cyan untuk
+  perisai); bat membesar/mengecil; robot yang dibekukan diberi tint biru es; bola hantu
+  memudar di tengah meja (pemiliknya tetap melihat samar).
+- **Efek pukulan**: kilatan di titik pukul (pink saat smash), riak di titik pantul, angka
+  skor "membal".
+- **Peringkat**: baris dengan nomor (1 gold, 2 cyan, 3 pink), nama, M/K, rating; baris
+  sendiri bergaris pink. Tab Pribadi: bar level, kartu statistik, daftar pencapaian (★).
 
 ## 8. Gerak (motion)
 

@@ -1,13 +1,14 @@
 # PRD — PinkPonk
 
-Status: v0.2 — MVP terimplementasi di branch `development` · Domain: `pinkponk.panduarah.my.id`
+Status: v0.3 — MVP + Gamble, peringkat, cari lawan acak di branch `development` · Domain: `pinkponk.panduarah.my.id`
 
 ## 1. Ringkasan
 
 PinkPonk adalah game ping pong berbasis web yang langsung bisa dimainkan di
 browser HP maupun desktop, tanpa instal dan tanpa akun. Identitasnya: karakter
-flat bergaya rubber-hose, warna neon pink, serta tema gelap dan terang. Semua
-berjalan di Cloudflare tanpa database.
+robot maskot, warna neon pink, serta tema gelap dan terang. Semua berjalan di
+Cloudflare tanpa database aplikasi; satu-satunya data server permanen adalah papan
+peringkat online (ID hash, nickname, rating, menang/kalah).
 
 ## 2. Tujuan
 
@@ -26,8 +27,8 @@ berjalan di Cloudflare tanpa database.
 
 ## 4. Non-goal (tidak dikerjakan)
 
-- Akun, login, leaderboard global, dan penyimpanan server permanen (tidak ada DB).
-- Matchmaking acak dengan orang asing (hanya lewat kode/link room).
+- Akun dan login. Identitas peringkat cukup rahasia acak di perangkat (lihat §7.5).
+- Penyimpanan server permanen selain papan peringkat (tidak ada DB aplikasi).
 - Chat teks bebas (hanya reaksi emoji yang sudah ditentukan, untuk mencegah pelecehan).
 - Pembelian dalam aplikasi atau iklan.
 - Aplikasi native; cukup PWA.
@@ -49,6 +50,10 @@ berjalan di Cloudflare tanpa database.
 - Gaya: gravitasi, hambatan udara sederhana, efek Magnus dari spin.
 - Pantulan meja dan bat memakai koefisien restitusi + gesekan yang mengubah spin.
 - Bola menyentuh net lalu masuk: saat reli → lanjut; saat servis → *let* (diulang).
+- Bola sengaja diperlambat: waktu fisika bola berjalan 0,72× waktu nyata
+  (`BALL_TIME_SCALE`). Bentuk lintasan tetap seperti fisika asli, hanya lebih lama
+  di udara sehingga nyaman di layar HP; gerak bat tetap waktu nyata.
+- Kecepatan bola naik 2% setiap pukulan dalam satu reli (maks +25%).
 - Simulasi deterministik: input yang sama menghasilkan hasil yang sama
   (dibutuhkan untuk netcode, replay, dan test).
 
@@ -78,7 +83,9 @@ berjalan di Cloudflare tanpa database.
 
 ### 6.4 Aturan skor (disederhanakan dari ITTF)
 
-- Game sampai 11 poin; pada 10–10 (deuce) wajib unggul 2 poin.
+- Game sampai 11 poin; pada 10–10 (deuce) wajib unggul 2 poin, dengan **golden
+  point** di 14–14 (poin berikutnya menentukan). Aturan arkade ini mencegah game
+  tanpa akhir (ditemukan uji beban: dua pemain diam selalu memenangkan servis).
 - Servis bergantian setiap 2 poin, dan setiap 1 poin saat deuce.
 - Pertandingan best of 1 / 3 / 5 (default 3).
 - Pemain bertukar sisi di antara game (secara visual kamera tetap dari sisi pemain).
@@ -94,6 +101,7 @@ berjalan di Cloudflare tanpa database.
 | 2 | **Lokal 2 pemain** | Satu perangkat, di browser desktop: keyboard dibagi (WASD vs panah). Versi layar sentuh HP/tablet ada di backlog. | MVP |
 | 3 | **Online 1v1** | Buat room → kode 6 karakter + link. Server-authoritative di Durable Object. | MVP |
 | 4 | **Timing Smash** | Hanya klik/tap; hasil pukulan ditentukan ketepatan timing (lihat §8). Vs AI dan online. | MVP |
+| 5 | **Gamble** | Mode ayunan + stack dan roulette kemampuan (§7.3). Vs AI dan online. | v0.3 |
 
 ### 7.1 Tingkat AI
 
@@ -122,8 +130,47 @@ Nilai di atas adalah angka awal untuk di-tuning lewat playtest.
   mati saat HP berpindah jaringan).
 - Jeda atas permintaan: tiap pemain 2× per pertandingan, maks 60 detik; menghentikan
   simulasi di server untuk kedua pemain, siapa pun boleh melanjutkan.
-- Room hilang otomatis saat kosong; tidak ada data yang disimpan permanen.
+- Room hilang otomatis saat kosong. Bila kedua pemain tidak menyentuh kontrol selama
+  3 menit, pertandingan dihentikan tanpa pemenang (room ditinggal tidak memakan server).
+- Client lama (versi protokol berbeda, misalnya dari cache) ditolak dengan pesan
+  "muat ulang", bukan error misterius.
+- Opsi **Mode Gamble** untuk room dan antrean.
 - Penonton (v1.1): maksimal 8 per room, hanya menerima state.
+
+### 7.3 Mode Gamble
+
+- **Stack**: +1 tiap berhasil mengembalikan bola, +1 tiap memenangkan poin (maks 6).
+- Stack penuh → tombol **GAMBLE** (atau `E`/`Q`, gamepad Y) memutar roulette. Hasil
+  diputuskan simulasi (server saat online), jadi tidak bisa dicurangi dari client.
+- Kemampuan berlaku 1–2 poin berikutnya. Ditekan saat reli: aktif mulai poin berikutnya.
+
+| Kemampuan | Efek | Peluang |
+|-----------|------|---------|
+| Bat Raksasa | Jangkauan bat ×1,6 | 16% |
+| Bola Kilat | Pukulan ×1,25 lebih cepat | 15% |
+| Poin Ganda | Poin yang dimenangkan bernilai 2 (tidak melewati akhir game) | 12% |
+| Perisai | Satu bola yang lolos dikembalikan otomatis per poin | 13% |
+| Magnet | Bat ×1,6 lebih gesit, pukulan lebih akurat | 13% |
+| Bekukan | Bat lawan ×0,55 | 11% |
+| Bola Hantu | Bola menghilang di tengah meja bagi lawan (AI bereaksi lebih lambat) | 10% |
+| **Sial!** | Bat sendiri mengecil ×0,65, kurang akurat — risiko gamble | 7% |
+| **JACKPOT** | Bat raksasa + poin ganda | 3% |
+
+### 7.4 Cari lawan acak
+
+- Tombol "Cari lawan acak" di Online: antrean per kombinasi mode (ayunan/timing ×
+  normal/gamble), best of 3, dipasangkan urut kedatangan. Batas tunggu 60 detik.
+- Antrean hanya di memori (Durable Object `Matchmaker`), tidak disimpan.
+
+### 7.5 Peringkat dan progres
+
+- **Global**: rating Elo (awal 1000, K = 32) hanya dari pertandingan online yang
+  hasilnya dihitung server. Syarat dihitung: minimal 6 poin dimainkan (3 bila menang
+  WO), kedua pemain punya ID, bukan dari jaringan (IP) yang sama, dan pasangan yang
+  sama maksimal 3 kali per 24 jam. Top 50 + peringkat sendiri.
+- Identitas: rahasia acak 32 byte di perangkat; server hanya menyimpan hash-nya.
+  Hapus data situs = identitas baru. Pemain tidak aktif 180 hari dihapus.
+- **Pribadi** (di perangkat): XP dan level, statistik, dan 9 pencapaian.
 
 ## 8. Mode Timing Smash
 
@@ -221,10 +268,11 @@ pertama, karena POV itu hanya bisa untuk satu pemain.
 | Pengaturan grafis: Otomatis / Tinggi / Rendah | MVP |
 | PWA: bisa dipasang ke layar utama; Vs AI, Timing Smash vs AI, dan Lokal bisa offline | MVP |
 | Bahasa Indonesia + Inggris | MVP |
-| Reaksi emoji cepat (6 pilihan tetap) di online | v1.1 |
+| Reaksi emoji cepat (6 pilihan tetap) di online | ✓ |
+| Mode Gamble, cari lawan acak, peringkat global | v0.3 ✓ |
 | Mode penonton | v1.1 |
 | Replay smash terakhir (slow-mo) | v1.1 |
-| Statistik lokal: menang/kalah, reli terpanjang, akurasi PERFECT | v1.1 |
+| Statistik lokal: menang/kalah, reli terpanjang, akurasi PERFECT | v0.3 (✓, plus XP/level/pencapaian) |
 | Tantangan harian (seed dari tanggal, tanpa server) | v1.1 |
 | Kartu hasil yang bisa dibagikan (gambar dibuat di browser) | v1.1 |
 | Turnamen bracket lokal (4/8 pemain bergiliran) | Backlog |
@@ -250,7 +298,7 @@ pertama, karena POV itu hanya bisa untuk satu pemain.
 | Jaringan | Online tetap bisa dimainkan pada RTT 150 ms dan packet loss 2% |
 | Browser | Chrome/Edge/Firefox/Safari dua versi terakhir; iOS Safari 16+ |
 
-## 16. Metrik sukses (tanpa DB)
+## 16. Metrik sukses (tanpa DB aplikasi)
 
 Kunjungan diukur dengan Cloudflare Web Analytics (tanpa cookie). Kejadian game
 (mulai pertandingan, room selesai, error JS) dikirim lewat `POST /api/event` ke
@@ -272,7 +320,9 @@ tanpa nickname atau IP. Ini data agregat untuk metrik, bukan database aplikasi.
 7. [x] **PWA, i18n, aksesibilitas dasar.**
 8. [ ] Deploy ke `pinkponk-dev.panduarah.my.id` (menunggu domain + secret Cloudflare), playtest
    di HP sungguhan, tuning angka (jendela timing, AI, fisika), lalu rilis produksi.
-9. [ ] v1.1 sesuai tabel §13 (reaksi emoji sudah ada di online).
+9. [x] **v0.3:** mode Gamble, cari lawan acak, peringkat global + progres pribadi,
+   bola lebih lambat, uji beban (`QA.md` §6).
+10. [ ] v1.1 sesuai tabel §13.
 
 ## 18. Keputusan
 
@@ -286,3 +336,6 @@ tanpa nickname atau IP. Ini data agregat untuk metrik, bukan database aplikasi.
 | 2026-10-21 | Karakter berupa robot maskot (bukan manusia) |
 | 2026-10-21 | POV ke-4: Isometrik |
 | 2026-10-21 | Jeda juga tersedia di online (dibatasi agar tidak disalahgunakan) |
+| 2026-10-21 | Server di wilayah Asia-Pasifik (`locationHint: "apac"`) |
+| 2026-10-21 | Peringkat global disetujui pemilik produk: satu-satunya penyimpanan permanen (DO SQLite) |
+| 2026-10-21 | Golden point di 14–14 (ditemukan lewat uji beban) |

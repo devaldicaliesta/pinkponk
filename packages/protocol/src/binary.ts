@@ -1,4 +1,12 @@
-import type { MatchEvent, MatchPhase, PlayerInput, Side } from "@pinkponk/sim";
+import {
+  ABILITIES,
+  type Ability,
+  type MatchEvent,
+  type MatchPhase,
+  type PlayerInput,
+  type Side,
+  STACK_MAX,
+} from "@pinkponk/sim";
 
 export const MSG_INPUT = 1;
 export const MSG_PING = 2;
@@ -19,7 +27,7 @@ export const encodeInput = (i: PlayerInput): ArrayBuffer => {
   v.setInt8(9, Math.round(i.aim * 127));
   v.setInt8(10, Math.round(i.lift * 127));
   v.setUint8(11, Math.round(i.power * 255));
-  v.setUint8(12, (i.serve ? 1 : 0) | (i.tapMs !== null ? 2 : 0));
+  v.setUint8(12, (i.serve ? 1 : 0) | (i.tapMs !== null ? 2 : 0) | (i.ability ? 4 : 0));
   v.setFloat64(13, i.tapMs ?? 0);
   return buf;
 };
@@ -37,6 +45,7 @@ export const decodeInput = (buf: ArrayBuffer): PlayerInput | null => {
     power: v.getUint8(11) / 255,
     serve: (flags & 1) === 1,
     tapMs: (flags & 2) === 2 ? v.getFloat64(13) : null,
+    ability: (flags & 4) === 4,
   };
 };
 
@@ -87,7 +96,16 @@ export interface Snapshot {
   rallyHits: number;
   ball: { pos: Vec; vel: Vec; spin: Vec };
   bats: [number, number];
+  gamble: [GambleView, GambleView];
   events: MatchEvent[];
+}
+
+/** Status Gamble yang perlu dilihat client (HUD dan efek). */
+export interface GambleView {
+  stack: number;
+  ability: Ability | null;
+  pointsLeft: number;
+  armed: boolean;
 }
 
 interface Vec {
@@ -119,6 +137,8 @@ const EVENT_TYPES = [
   "game",
   "match",
   "fever",
+  "ability",
+  "shield",
 ] as const;
 
 const EVENT_SIZE = 12;
@@ -141,8 +161,11 @@ const O = {
   spin: 43,
   bats: 55,
   count: 63,
+  gamble: 64,
 } as const;
-const HEADER = 64;
+// Per pemain: stack, kemampuan (255 = tidak ada), sisa poin, flag (1 = armed).
+const GAMBLE_SIZE = 4;
+const HEADER = 64 + GAMBLE_SIZE * 2;
 
 const indexOf = <T>(list: readonly T[], v: T): number => Math.max(0, list.indexOf(v));
 
@@ -180,6 +203,14 @@ const encodeEvent = (v: DataView, o: number, e: MatchEvent): void => {
     case "fever":
       a = e.player;
       b = e.on ? 1 : 0;
+      break;
+    case "ability":
+      a = e.player;
+      b = indexOf(ABILITIES, e.ability);
+      x = e.points;
+      break;
+    case "shield":
+      a = e.player;
       break;
   }
   v.setUint8(o + 1, a);
@@ -219,9 +250,36 @@ const decodeEvent = (v: DataView, o: number): MatchEvent | null => {
       return { type, winner: a };
     case "fever":
       return { type, player: a, on: b === 1 };
+    case "ability": {
+      const ability = ABILITIES[b];
+      const points = Math.round(v.getFloat32(o + 4));
+      return ability ? { type, player: a, ability, points: clampInt(points, 1, 9) } : null;
+    }
+    case "shield":
+      return { type, player: a };
     default:
       return null;
   }
+};
+
+const clampInt = (n: number, min: number, max: number): number =>
+  Number.isFinite(n) ? Math.min(max, Math.max(min, Math.trunc(n))) : min;
+
+const writeGamble = (v: DataView, o: number, g: GambleView): void => {
+  v.setUint8(o, clampInt(g.stack, 0, 255));
+  v.setUint8(o + 1, g.ability === null ? 255 : indexOf(ABILITIES, g.ability));
+  v.setUint8(o + 2, clampInt(g.pointsLeft, 0, 255));
+  v.setUint8(o + 3, g.armed ? 1 : 0);
+};
+
+const readGamble = (v: DataView, o: number): GambleView => {
+  const id = v.getUint8(o + 1);
+  return {
+    stack: Math.min(STACK_MAX, v.getUint8(o)),
+    ability: id === 255 ? null : (ABILITIES[id] ?? null),
+    pointsLeft: v.getUint8(o + 2),
+    armed: (v.getUint8(o + 3) & 1) === 1,
+  };
 };
 
 const writeVec = (v: DataView, o: number, p: Vec): void => {
@@ -258,6 +316,8 @@ export const encodeSnapshot = (s: Snapshot): ArrayBuffer => {
   v.setFloat32(O.bats, s.bats[0]);
   v.setFloat32(O.bats + 4, s.bats[1]);
   v.setUint8(O.count, events.length);
+  writeGamble(v, O.gamble, s.gamble[0]);
+  writeGamble(v, O.gamble + GAMBLE_SIZE, s.gamble[1]);
   events.forEach((e, i) => {
     encodeEvent(v, HEADER + i * EVENT_SIZE, e);
   });
@@ -289,6 +349,7 @@ export const decodeSnapshot = (buf: ArrayBuffer): Snapshot | null => {
     rallyHits: v.getUint16(O.rallyHits),
     ball: { pos: readVec(v, O.pos), vel: readVec(v, O.vel), spin: readVec(v, O.spin) },
     bats: [v.getFloat32(O.bats), v.getFloat32(O.bats + 4)],
+    gamble: [readGamble(v, O.gamble), readGamble(v, O.gamble + GAMBLE_SIZE)],
     events,
   };
 };

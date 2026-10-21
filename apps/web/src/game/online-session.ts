@@ -17,11 +17,20 @@ import {
 import type { NetClient, NetError } from "../net/client";
 import { SnapshotBuffer } from "../net/interpolate";
 import type { HumanInput } from "./input";
-import type { CrossingView, MatchView, NetStatus, Session } from "./session";
+import {
+  type CrossingView,
+  type MatchView,
+  type NetStatus,
+  NO_GAMBLE,
+  type Session,
+} from "./session";
 
 /** Waktu tampilan di belakang server agar selalu ada dua snapshot untuk diinterpolasi. */
 const INTERP_MS = 100;
 const SEND_EVERY_MS = 1000 / 30;
+// Di luar reli (servis, jeda poin, hitung mundur) input yang tidak berubah cukup dikirim
+// 10x/detik: pesan masuk adalah biaya utama Durable Object dan beban server saat ramai.
+const IDLE_SEND_MS = 100;
 const RECONNECT_GRACE_MS = 30_000;
 
 const EMPTY_VIEW: MatchView = {
@@ -36,18 +45,23 @@ const EMPTY_VIEW: MatchView = {
   rallyHits: 0,
   ball: { pos: { x: 0, y: 0.24, z: 1.49 }, vel: { x: 0, y: 0, z: 0 }, spin: { x: 0, y: 0, z: 0 } },
   bats: [0, 0],
+  gamble: [NO_GAMBLE, NO_GAMBLE],
 };
 
 export class OnlineSession implements Session {
   readonly kind = "online" as const;
   readonly mode: PlayMode;
   readonly bestOf: number;
+  readonly gamble: boolean;
+  readonly difficulty = null;
   private buffer = new SnapshotBuffer();
   private consumedTick = 0;
   private events: MatchEvent[] = [];
   private current: MatchView = EMPTY_VIEW;
   private renderMs = 0;
   private lastSend = 0;
+  private lastNetSend = 0;
+  private lastSentX = Number.NaN;
   private batX = 0;
   private lastWall: number | null = null;
   private bouncedOnMe = false;
@@ -73,6 +87,7 @@ export class OnlineSession implements Session {
   ) {
     this.mode = config.mode;
     this.bestOf = config.bestOf;
+    this.gamble = config.gamble;
     client.setHandlers({
       onControl: (m) => this.onControl(m),
       onSnapshot: (s) => this.buffer.push(s),
@@ -113,7 +128,18 @@ export class OnlineSession implements Session {
         -BAT_MAX_X,
         Math.min(BAT_MAX_X, this.batX + clampStep(input.x - this.batX, step)),
       );
-      this.client.sendInput({ ...input, x: this.batX });
+      const urgent = input.serve || input.tapMs !== null || input.ability;
+      const moved = !(Math.abs(this.batX - this.lastSentX) <= 0.01);
+      if (
+        urgent ||
+        moved ||
+        this.current.phase === "rally" ||
+        wallMs - this.lastNetSend >= IDLE_SEND_MS
+      ) {
+        this.lastNetSend = wallMs;
+        this.lastSentX = this.batX;
+        this.client.sendInput({ ...input, x: this.batX });
+      }
     }
 
     const sample = this.buffer.sample(this.renderMs);
@@ -208,6 +234,10 @@ export class OnlineSession implements Session {
     this.client.sendControl({ t: "rematch" });
   }
 
+  pressAbility(): void {
+    this.input.pressAbility();
+  }
+
   sendEmoji(e: number): void {
     this.client.sendControl({ t: "emoji", e });
   }
@@ -244,4 +274,5 @@ const toView = (
   rallyHits: s.rallyHits,
   ball: { pos: ballPos, vel: s.ball.vel, spin: s.ball.spin },
   bats: [bats[0], bats[1]],
+  gamble: s.gamble,
 });

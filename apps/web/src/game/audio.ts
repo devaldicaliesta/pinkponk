@@ -12,7 +12,12 @@ export type Sfx =
   | "lose"
   | "beep"
   | "go"
-  | "fever";
+  | "fever"
+  | "spin"
+  | "ability"
+  | "jinx"
+  | "shield"
+  | "stackFull";
 
 let ctx: AudioContext | null = null;
 let noise: AudioBuffer | null = null;
@@ -124,6 +129,27 @@ export const play = (sfx: Sfx): void => {
       [880, 1100, 1320, 1760].forEach((f, i) => {
         tone(c, f, 0.1, "square", 0.08, i * 0.05);
       });
+      break;
+    case "spin":
+      // Detak roulette yang melambat.
+      [0, 0.06, 0.13, 0.21, 0.31, 0.43, 0.58, 0.76].forEach((d, i) => {
+        tone(c, 1500 - i * 60, 0.03, "square", 0.05, d);
+      });
+      break;
+    case "ability":
+      tone(c, 523, 0.12, "triangle", 0.2);
+      tone(c, 784, 0.16, "triangle", 0.2, 0.08);
+      tone(c, 1047, 0.24, "triangle", 0.2, 0.16);
+      break;
+    case "jinx":
+      tone(c, 400, 0.4, "sawtooth", 0.08, 0, 120);
+      break;
+    case "shield":
+      tone(c, 1200, 0.2, "sine", 0.2, 0, 2400);
+      break;
+    case "stackFull":
+      tone(c, 988, 0.08, "square", 0.08);
+      tone(c, 1319, 0.12, "square", 0.08, 0.08);
       break;
   }
 };

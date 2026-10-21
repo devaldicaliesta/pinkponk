@@ -11,6 +11,9 @@ export interface Score {
 }
 
 export const POINTS_TO_WIN = 11;
+// Aturan arkade: di 14–14 poin berikutnya menentukan (golden point). Tanpa batas ini dua
+// pemain yang sama-sama selalu memenangkan servisnya bisa deuce selamanya.
+export const GOLDEN_POINT = 15;
 
 export const createScore = (bestOf: BestOf, firstServer: Side): Score => ({
   points: [0, 0],
@@ -34,8 +37,8 @@ export const currentServer = (s: Score): Side => {
 
 export const gameWinner = (s: Score): Side | null => {
   const [a, b] = s.points;
-  if (a >= POINTS_TO_WIN && a - b >= 2) return 0;
-  if (b >= POINTS_TO_WIN && b - a >= 2) return 1;
+  if (a >= POINTS_TO_WIN && (a - b >= 2 || a >= GOLDEN_POINT)) return 0;
+  if (b >= POINTS_TO_WIN && (b - a >= 2 || b >= GOLDEN_POINT)) return 1;
   return null;
 };
 

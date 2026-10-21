@@ -31,5 +31,6 @@ export const sanitizeInput = (raw: PlayerInput, nowTick: number): PlayerInput =>
     power: clamp(finite(raw.power), 0, 1),
     serve: raw.serve === true,
     tapMs,
+    ability: raw.ability === true,
   };
 };

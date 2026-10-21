@@ -1,16 +1,18 @@
 import { useEffect, useState } from "preact/hooks";
 import { useT } from "../../i18n";
+import { levelOf, useProgress } from "../../state/progress";
 import { useSettings } from "../../state/settings";
 import { Logo } from "../components/Logo";
 import { ModeIcon, type ModeIconName } from "../components/ModeIcon";
 
-export type MenuMode = "ai" | "local" | "online" | "timing";
+export type MenuMode = "ai" | "local" | "online" | "timing" | "gamble";
 
 interface Props {
   onMode(m: MenuMode): void;
   onSettings(): void;
   onHowTo(): void;
   onNickname(): void;
+  onLeaderboard(): void;
 }
 
 const useOnline = () => {
@@ -28,9 +30,24 @@ const useOnline = () => {
   return online;
 };
 
-const MODES: MenuMode[] = ["ai", "timing", "online", "local"];
+const MODES: MenuMode[] = ["ai", "gamble", "timing", "online", "local"];
 
-export const Title = ({ onMode, onSettings, onHowTo, onNickname }: Props) => {
+const LevelBadge = () => {
+  const t = useT();
+  const p = useProgress();
+  const lv = levelOf(p.xp);
+  return (
+    <div class="level" data-testid="level">
+      <span class="level__n">{t("xp.level", { n: lv.level })}</span>
+      <span class="level__bar" aria-hidden="true">
+        <span style={{ width: `${Math.round((lv.into / lv.need) * 100)}%` }} />
+      </span>
+      <span class="level__xp">{t("xp.progress", { a: lv.into, b: lv.need })}</span>
+    </div>
+  );
+};
+
+export const Title = ({ onMode, onSettings, onHowTo, onNickname, onLeaderboard }: Props) => {
   const t = useT();
   const s = useSettings();
   const online = useOnline();
@@ -59,6 +76,7 @@ export const Title = ({ onMode, onSettings, onHowTo, onNickname }: Props) => {
             </button>
           </div>
         )}
+        <LevelBadge />
         <nav class="stack" aria-label={t("app.play")}>
           {MODES.map((m) => (
             <button
@@ -79,6 +97,14 @@ export const Title = ({ onMode, onSettings, onHowTo, onNickname }: Props) => {
         </nav>
         {!online && <p class="muted">{t("app.offline")}</p>}
         <div class="row">
+          <button
+            type="button"
+            class="btn spacer"
+            onClick={onLeaderboard}
+            data-testid="open-leaderboard"
+          >
+            {t("app.leaderboard")}
+          </button>
           <button type="button" class="btn spacer" onClick={onHowTo}>
             {t("app.howto")}
           </button>

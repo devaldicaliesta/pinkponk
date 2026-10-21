@@ -13,6 +13,7 @@
   --lime-text: #c6ff3d;
   --on-lime: #1a0f1f;
   --cyan: #3de8ff;
+  --gold: #ffd23d;
   --danger: #ff5a5a;
   --table: #1b2a6b;
   --table-line: #ffffff;
@@ -50,6 +51,7 @@
     --pink-glow: rgb(214 0 111 / 0.25);
     --lime-text: #4a7a00;
     --cyan: #007c91;
+    --gold: #8a5f00;
     --danger: #c62828;
     --table: #2747c9;
     --ball: #ff8a00;
@@ -71,6 +73,7 @@
   --pink-glow: rgb(214 0 111 / 0.25);
   --lime-text: #4a7a00;
   --cyan: #007c91;
+  --gold: #8a5f00;
   --danger: #c62828;
   --table: #2747c9;
   --ball: #ff8a00;

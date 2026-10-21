@@ -6,6 +6,7 @@ import {
   MSG_PONG,
   MSG_SNAPSHOT,
   messageType,
+  PROTOCOL_VERSION,
   parseServerControl,
   type RoomConfig,
   type RoomErrorCode,
@@ -13,6 +14,7 @@ import {
   type Snapshot,
 } from "@pinkponk/protocol";
 import type { PlayerInput } from "@pinkponk/sim";
+import { playerSecret } from "../state/player";
 import { ClockSync } from "./clock";
 
 export type NetError = RoomErrorCode | "network";
@@ -89,6 +91,8 @@ export class NetClient {
       ws.send(
         JSON.stringify({
           t: "hello",
+          v: PROTOCOL_VERSION,
+          player: playerSecret(),
           nick: this.nick,
           create: this.create && !this.welcomed,
           config: this.config,

@@ -10,7 +10,13 @@ import {
   encodeSnapshot,
   type Snapshot,
 } from "./binary";
-import { isRoomCode, parseClientControl, roomCodeFromBytes } from "./control";
+import {
+  isRoomCode,
+  PROTOCOL_VERSION,
+  parseClientControl,
+  parseQueueClient,
+  roomCodeFromBytes,
+} from "./control";
 
 const snapshot: Snapshot = {
   tick: 12345,
@@ -28,6 +34,10 @@ const snapshot: Snapshot = {
     spin: { x: 90, y: 0, z: -3 },
   },
   bats: [0.25, -0.5],
+  gamble: [
+    { stack: 4, ability: null, pointsLeft: 0, armed: false },
+    { stack: 0, ability: "jackpot", pointsLeft: 2, armed: true },
+  ],
   events: [
     { type: "bounce", side: 1, x: 0.5, z: -0.75 },
     { type: "hit", player: 0, shot: "smash", grade: "perfect" },
@@ -36,6 +46,8 @@ const snapshot: Snapshot = {
     { type: "point", winner: 0, reason: "double-bounce" },
     { type: "fever", player: 1, on: true },
     { type: "net" },
+    { type: "ability", player: 1, ability: "freeze", points: 2 },
+    { type: "shield", player: 0 },
   ],
 };
 
@@ -59,6 +71,7 @@ describe("protokol biner", () => {
         power: 1,
         serve: true,
         tapMs: 812.5,
+        ability: true,
       }),
     );
     expect(out).toMatchObject({
@@ -68,20 +81,32 @@ describe("protokol biner", () => {
       power: 1,
       serve: true,
       tapMs: 812.5,
+      ability: true,
     });
     expect(out?.lift).toBeCloseTo(0.5, 1);
   });
 
   it("input tanpa tap", () => {
     const out = decodeInput(
-      encodeInput({ viewTick: 1, x: 0, aim: 0, lift: 0, power: 0, serve: false, tapMs: null }),
+      encodeInput({
+        viewTick: 1,
+        x: 0,
+        aim: 0,
+        lift: 0,
+        power: 0,
+        serve: false,
+        tapMs: null,
+        ability: false,
+      }),
     );
     expect(out?.tapMs).toBeNull();
+    expect(out?.ability).toBe(false);
   });
 
   it("menolak pesan dengan panjang salah", () => {
     expect(decodeInput(new ArrayBuffer(5))).toBeNull();
     expect(decodeSnapshot(new ArrayBuffer(70))).toBeNull();
+    expect(decodeSnapshot(new ArrayBuffer(73))).toBeNull();
     expect(decodePing(new ArrayBuffer(3))).toBeNull();
   });
 
@@ -92,7 +117,7 @@ describe("protokol biner", () => {
 });
 
 describe("pesan kontrol", () => {
-  it("hello sah", () => {
+  it("hello sah (client lama tanpa versi dan gamble tetap terbaca)", () => {
     const msg = JSON.stringify({
       t: "hello",
       nick: "Rara",
@@ -101,10 +126,43 @@ describe("pesan kontrol", () => {
     });
     expect(parseClientControl(msg)).toEqual({
       t: "hello",
+      v: 0,
       nick: "Rara",
       create: true,
-      config: { mode: "timing", bestOf: 3 },
+      config: { mode: "timing", bestOf: 3, gamble: false },
       token: null,
+      player: null,
+    });
+  });
+
+  it("hello lengkap dengan rahasia pemain", () => {
+    const secret = "ab".repeat(32);
+    const msg = JSON.stringify({
+      t: "hello",
+      v: PROTOCOL_VERSION,
+      nick: "Rara",
+      create: false,
+      config: { mode: "swing", bestOf: 5, gamble: true },
+      token: "0".repeat(32),
+      player: secret,
+    });
+    expect(parseClientControl(msg)).toMatchObject({
+      v: PROTOCOL_VERSION,
+      config: { gamble: true },
+      player: secret,
+    });
+  });
+
+  it("rahasia pemain yang tidak sah diabaikan", () => {
+    const msg = JSON.stringify({
+      t: "hello",
+      nick: "Rara",
+      create: true,
+      config: { mode: "swing", bestOf: 1 },
+      player: "ZZ".repeat(32),
+    });
+    expect(parseClientControl(msg)?.t === "hello" && parseClientControl(msg)).toMatchObject({
+      player: null,
     });
   });
 
@@ -116,7 +174,7 @@ describe("pesan kontrol", () => {
     JSON.stringify({ t: "hello", nick: "a", create: true, config: { mode: "swing", bestOf: 2 } }),
     JSON.stringify({ t: "emoji", e: 99 }),
     JSON.stringify({ t: "admin" }),
-    JSON.stringify({ t: "hello", nick: "x".repeat(300) }),
+    JSON.stringify({ t: "hello", nick: "x".repeat(400) }),
   ])("menolak %s", (msg) => {
     expect(parseClientControl(msg)).toBeNull();
   });
@@ -127,4 +185,19 @@ describe("pesan kontrol", () => {
     expect(isRoomCode("ABCDE0")).toBe(false);
     expect(isRoomCode("abcdef")).toBe(false);
   });
+});
+
+describe("pesan antrean", () => {
+  it("menerima permintaan antrean sah", () => {
+    expect(
+      parseQueueClient(JSON.stringify({ t: "queue", v: 2, mode: "swing", gamble: true })),
+    ).toEqual({ t: "queue", v: 2, mode: "swing", gamble: true });
+  });
+
+  it.each(["{}", JSON.stringify({ t: "queue", mode: "x" }), "x".repeat(400)])(
+    "menolak %s",
+    (msg) => {
+      expect(parseQueueClient(msg)).toBeNull();
+    },
+  );
 });

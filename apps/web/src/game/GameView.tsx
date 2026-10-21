@@ -1,7 +1,9 @@
-import { AiController, type Side } from "@pinkponk/sim";
+import { AiController, type Side, STACK_MAX } from "@pinkponk/sim";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { sendEvent } from "../analytics";
 import { useT } from "../i18n";
+import type { NetError } from "../net/client";
+import { type MatchReward, recordMatch } from "../state/progress";
 import { getSettings, type Pov, prefersReducedMotion, updateSettings } from "../state/settings";
 import { play, setSoundEnabled, unlockAudio } from "./audio";
 import { lookFromIndices, opponentLook } from "./character";
@@ -49,11 +51,18 @@ const initialHud = (session: Session): HudState => ({
   net: session.net(),
   serveHint: null,
   emoji: null,
+  roulette: null,
+  shield: null,
 });
 
 const snapshotHud = (s: HudState): HudState => ({
   ...s,
-  view: { ...s.view, points: [...s.view.points], games: [...s.view.games] },
+  view: {
+    ...s.view,
+    points: [...s.view.points],
+    games: [...s.view.games],
+    gamble: [{ ...s.view.gamble[0] }, { ...s.view.gamble[1] }],
+  },
   net: s.net ? { ...s.net, rematch: [...s.net.rematch], pausesLeft: [...s.net.pausesLeft] } : null,
 });
 
@@ -70,12 +79,15 @@ const hudKey = (s: HudState): string =>
     s.badge,
     s.serveHint,
     s.emoji?.key,
+    s.roulette?.key,
+    s.shield?.key,
+    s.view.gamble.map((g) => `${g.stack}${g.ability}${g.pointsLeft}${g.armed}`).join(),
     s.net
       ? `${Math.round((s.net.pingMs ?? 0) / 10)}|${s.net.paused?.reason}|${s.net.pausesLeft.join()}|${s.net.opponentLeft}|${s.net.reconnecting}|${s.net.rematch.join()}`
       : "",
   ].join(";");
 
-const recordStats = (session: Session, view: MatchView, st: MatchStats): void => {
+const recordStats = (session: Session, view: MatchView, st: MatchStats): MatchReward | null => {
   const s = getSettings();
   const counted = session.kind !== "local" && session.you !== null;
   const won = counted && view.winner === session.you;
@@ -88,6 +100,19 @@ const recordStats = (session: Session, view: MatchView, st: MatchStats): void =>
       timingHits: s.stats.timingHits + st.timingHits,
     },
   });
+  if (!counted) return null;
+  return recordMatch({
+    kind: session.kind === "online" ? "online" : "ai",
+    mode: session.mode,
+    gamble: session.gamble,
+    difficulty: session.difficulty,
+    won,
+    pointsWon: st.pointsWon,
+    longestRally: st.longestRally,
+    perfects: st.perfects,
+    abilities: st.abilities,
+    jackpot: st.jackpot,
+  });
 };
 
 const GameView = ({ session, onExit }: Props) => {
@@ -98,6 +123,9 @@ const GameView = ({ session, onExit }: Props) => {
   const [paused, setPaused] = useState(false);
   const [pov, setPov] = useState<Pov>(() => defaultPov(session));
   const [stats, setStats] = useState<MatchStats>(emptyStats);
+  const [reward, setReward] = useState<MatchReward | null>(null);
+  const [fatal, setFatal] = useState<NetError | null>(null);
+  const reducedRef = useRef(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -105,6 +133,7 @@ const GameView = ({ session, onExit }: Props) => {
     const settings = getSettings();
     setSoundEnabled(settings.sound);
     const reduced = prefersReducedMotion(settings);
+    reducedRef.current = reduced;
     const mine = lookFromIndices(settings.character);
     const viewer: Side = session.you ?? 0;
     const renderer = new GameRenderer({
@@ -121,6 +150,7 @@ const GameView = ({ session, onExit }: Props) => {
     feedbackRef.current = feedback;
     if (session instanceof OnlineSession) {
       session.onEmoji = (player, e) => feedback.showEmoji(player, e, performance.now());
+      session.onFatal = (e) => setFatal(e);
     }
 
     const resize = () => renderer.resize(canvas.clientWidth, canvas.clientHeight);
@@ -143,6 +173,7 @@ const GameView = ({ session, onExit }: Props) => {
     let fpsFrames = 0;
     let fpsStart = performance.now();
     let degraded = settings.graphics === "low";
+    let lastStack = 0;
 
     sendEvent("match_start", session.kind === "online" ? session.mode : session.kind);
 
@@ -187,7 +218,14 @@ const GameView = ({ session, onExit }: Props) => {
         net: session.net(),
         serveHint: serveHintFor(session.kind, session.you, view, coarse),
         emoji: feedback.emoji,
+        roulette: feedback.roulette,
+        shield: feedback.shield,
       };
+      if (session.gamble && session.you !== null) {
+        const stack = view.gamble[session.you].stack;
+        if (stack >= STACK_MAX && lastStack < STACK_MAX) play("stackFull");
+        lastStack = stack;
+      }
       const key = hudKey(next);
       if (key !== lastKey) {
         lastKey = key;
@@ -196,7 +234,7 @@ const GameView = ({ session, onExit }: Props) => {
       if (feedback.matchEnded) {
         feedback.matchEnded = false;
         setStats({ ...feedback.stats });
-        recordStats(session, view, feedback.stats);
+        setReward(recordStats(session, view, feedback.stats));
         sendEvent("match_end", session.kind === "online" ? session.mode : session.kind);
       }
     };
@@ -212,6 +250,9 @@ const GameView = ({ session, onExit }: Props) => {
         crossing: () => (session.you === null ? null : session.crossing(session.you)),
         viewMs: () => session.viewMs(),
         tapNow: () => session.injectTap?.(performance.now()),
+        fillStack: () => {
+          if (session instanceof LocalSession) session.match.players[0].gamble.stack = STACK_MAX;
+        },
         view: () => session.view(),
       };
     }
@@ -257,6 +298,7 @@ const GameView = ({ session, onExit }: Props) => {
   const rematch = () => {
     feedbackRef.current?.reset();
     setStats(emptyStats());
+    setReward(null);
     session.rematch();
   };
 
@@ -294,6 +336,9 @@ const GameView = ({ session, onExit }: Props) => {
         onPause={() => pause(true)}
         onCamera={cyclePov}
         onEmoji={session instanceof OnlineSession ? (e) => session.sendEmoji(e) : undefined}
+        gamble={session.gamble}
+        reducedMotion={reducedRef.current}
+        onAbility={() => session.pressAbility()}
       />
       {showPause && (
         <PauseMenu
@@ -318,12 +363,42 @@ const GameView = ({ session, onExit }: Props) => {
           view={hud.view}
           net={hud.net}
           stats={stats}
+          reward={reward}
           onRematch={rematch}
           onMenu={onExit}
         />
       )}
-      {!over && netPause?.reason === "disconnect" && <NetOverlay resumeBy={netPause.resumeBy} />}
-      {!over && !netPause && hud.net?.reconnecting && <NetOverlay resumeBy={null} />}
+      {fatal && <FatalOverlay error={fatal} onMenu={onExit} />}
+      {!fatal && !over && netPause?.reason === "disconnect" && (
+        <NetOverlay resumeBy={netPause.resumeBy} />
+      )}
+      {!fatal && !over && !netPause && hud.net?.reconnecting && <NetOverlay resumeBy={null} />}
+    </div>
+  );
+};
+
+/** Koneksi online gagal permanen: jelaskan sebabnya dan beri jalan keluar. */
+const FatalOverlay = ({ error, onMenu }: { error: NetError; onMenu(): void }) => {
+  const t = useT();
+  const text = error === "network" ? t("game.fatal") : t(`lobby.err.${error}`);
+  return (
+    <div class="overlay" role="alertdialog" aria-modal="true">
+      <div class="glass overlay__panel" data-testid="fatal">
+        <p>{text}</p>
+        {error === "outdated" ? (
+          <button
+            type="button"
+            class="btn btn--primary btn--block"
+            onClick={() => location.reload()}
+          >
+            {t("lobby.reload")}
+          </button>
+        ) : (
+          <button type="button" class="btn btn--primary btn--block" onClick={onMenu}>
+            {t("game.menu")}
+          </button>
+        )}
+      </div>
     </div>
   );
 };

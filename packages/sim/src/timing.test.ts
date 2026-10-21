@@ -26,7 +26,7 @@ describe("penilaian timing", () => {
 
   it("kecepatan reli naik 3% per pukulan, maksimal 35%", () => {
     expect(rallySpeedFactor(0)).toBe(1);
-    expect(rallySpeedFactor(5)).toBeCloseTo(1.15);
-    expect(rallySpeedFactor(100)).toBeCloseTo(1.35);
+    expect(rallySpeedFactor(5)).toBeCloseTo(1.1);
+    expect(rallySpeedFactor(100)).toBeCloseTo(1.25);
   });
 });

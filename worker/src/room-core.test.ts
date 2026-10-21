@@ -4,16 +4,29 @@ import {
   encodePing,
   MSG_SNAPSHOT,
   messageType,
+  PROTOCOL_VERSION,
   type ServerControl,
 } from "@pinkponk/protocol";
 import { emptyInput, MS_PER_TICK } from "@pinkponk/sim";
 import { beforeEach, describe, expect, it } from "vitest";
-import { type Conn, RECONNECT_GRACE_MS, RoomCore } from "./room-core";
+import {
+  type Conn,
+  HELLO_TIMEOUT_MS,
+  IDLE_MATCH_MS,
+  MAX_CONNS,
+  type MatchResult,
+  MIN_RATED_POINTS,
+  RECONNECT_GRACE_MS,
+  RoomCore,
+} from "./room-core";
 
 class FakeConn implements Conn {
   sent: (string | ArrayBuffer)[] = [];
   closed: { code: number; reason: string } | null = null;
-  constructor(readonly id: string) {}
+  constructor(
+    readonly id: string,
+    readonly origin?: string,
+  ) {}
   send(data: string | ArrayBuffer) {
     this.sent.push(data);
   }
@@ -35,22 +48,44 @@ class FakeConn implements Conn {
   }
 }
 
-const hello = (nick: string, create: boolean, token: string | null = null) =>
-  JSON.stringify({ t: "hello", nick, create, config: { mode: "swing", bestOf: 1 }, token });
+const hello = (
+  nick: string,
+  create: boolean,
+  token: string | null = null,
+  extra: Record<string, unknown> = {},
+) =>
+  JSON.stringify({
+    t: "hello",
+    v: PROTOCOL_VERSION,
+    nick,
+    create,
+    config: { mode: "swing", bestOf: 1 },
+    token,
+    ...extra,
+  });
 
 let clock = 0;
 let tokenN = 0;
+let reports: MatchResult[] = [];
 const makeRoom = () =>
   new RoomCore("ABC234", {
     now: () => clock,
     randomSeed: () => 42,
     randomToken: () => (tokenN++).toString(16).padStart(32, "0"),
+    reportResult: (r) => reports.push(r),
   });
 
-const join = (room: RoomCore, id: string, nick: string, create: boolean) => {
-  const c = new FakeConn(id);
+const join = (
+  room: RoomCore,
+  id: string,
+  nick: string,
+  create: boolean,
+  extra: Record<string, unknown> = {},
+  origin?: string,
+) => {
+  const c = new FakeConn(id, origin);
   room.open(c);
-  room.message(c, hello(nick, create));
+  room.message(c, hello(nick, create, null, extra));
   return c;
 };
 
@@ -65,6 +100,35 @@ describe("RoomCore", () => {
   beforeEach(() => {
     clock = 1_000;
     tokenN = 1;
+    reports = [];
+  });
+
+  it("menolak client dengan versi protokol lama", () => {
+    const room = makeRoom();
+    const c = new FakeConn("old");
+    room.open(c);
+    room.message(
+      c,
+      JSON.stringify({
+        t: "hello",
+        nick: "Rara",
+        create: true,
+        config: { mode: "swing", bestOf: 1 },
+      }),
+    );
+    expect(c.last("error")?.code).toBe("outdated");
+    expect(room.exists).toBe(false);
+  });
+
+  it("mode gamble diteruskan ke simulasi dan status stack ada di snapshot", () => {
+    const room = makeRoom();
+    const gambleCfg = { config: { mode: "swing", bestOf: 1, gamble: true } };
+    const a = join(room, "a", "Rara", true, gambleCfg);
+    join(room, "b", "Budi", false, gambleCfg);
+    expect(room.match?.config.gamble).toBe(true);
+    room.match!.players[1].gamble.stack = 6;
+    advance(room, 200);
+    expect(a.snapshots().at(-1)?.gamble[1].stack).toBe(6);
   });
 
   it("menolak bergabung ke room yang belum dibuat", () => {
@@ -265,5 +329,123 @@ describe("RoomCore — jeda dan koneksi diam", () => {
     expect(room.status).toBe("paused");
     advanceAlive(room, [a, b], 61_000);
     expect(room.status).toBe("playing");
+  });
+});
+
+describe("RoomCore — hasil untuk leaderboard", () => {
+  beforeEach(() => {
+    clock = 1_000;
+    tokenN = 1;
+    reports = [];
+  });
+
+  const secretA = "a".repeat(64);
+  const secretB = "b".repeat(64);
+
+  it("pertandingan penuh antara dua pemain berbeda dilaporkan sekali", () => {
+    const room = makeRoom();
+    join(room, "a", "Rara", true, { player: secretA }, "1.1.1.1");
+    join(room, "b", "Budi", false, { player: secretB }, "2.2.2.2");
+    (room as unknown as { pointsPlayed: number }).pointsPlayed = MIN_RATED_POINTS;
+    room.match!.forfeit(1);
+    room.tick();
+    room.tick();
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({
+      winner: { secret: secretA, nick: "Rara" },
+      loser: { secret: secretB, nick: "Budi" },
+    });
+  });
+
+  it("tidak dilaporkan bila terlalu pendek, tanpa rahasia, atau dari jaringan yang sama", () => {
+    const cases: [Record<string, unknown>, Record<string, unknown>, string, string, number][] = [
+      [{ player: secretA }, { player: secretB }, "1.1.1.1", "2.2.2.2", 1],
+      [{ player: secretA }, {}, "1.1.1.1", "2.2.2.2", MIN_RATED_POINTS],
+      [{ player: secretA }, { player: secretA }, "1.1.1.1", "2.2.2.2", MIN_RATED_POINTS],
+      [{ player: secretA }, { player: secretB }, "9.9.9.9", "9.9.9.9", MIN_RATED_POINTS],
+    ];
+    for (const [ea, eb, oa, ob, pts] of cases) {
+      const room = makeRoom();
+      join(room, "a", "Rara", true, ea, oa);
+      join(room, "b", "Budi", false, eb, ob);
+      (room as unknown as { pointsPlayed: number }).pointsPlayed = pts;
+      room.match!.forfeit(1);
+      room.tick();
+    }
+    expect(reports).toHaveLength(0);
+  });
+
+  it("menghitung poin yang dimainkan dari simulasi", () => {
+    const room = makeRoom();
+    const a = join(room, "a", "Rara", true, { player: secretA }, "1.1.1.1");
+    const b = join(room, "b", "Budi", false, { player: secretB }, "2.2.2.2");
+    // Pemain 1 menjauhkan bat: servis otomatis pemain 0 selalu menghasilkan poin.
+    for (let t = 0; t < 40_000; t += 500) {
+      room.message(a, encodePing(t));
+      room.message(b, encodeInput({ ...emptyInput(room.match!.tick), x: 1.1 }));
+      advance(room, 500);
+    }
+    expect((room as unknown as { pointsPlayed: number }).pointsPlayed).toBeGreaterThan(2);
+  });
+});
+
+describe("RoomCore — perlindungan beban", () => {
+  beforeEach(() => {
+    clock = 1_000;
+    tokenN = 1;
+    reports = [];
+  });
+
+  it("koneksi berlebih ke satu room ditolak", () => {
+    const room = makeRoom();
+    const conns = Array.from({ length: MAX_CONNS + 3 }, (_, i) => new FakeConn(`c${i}`));
+    const accepted = conns.map((c) => room.open(c)).filter(Boolean).length;
+    expect(accepted).toBe(MAX_CONNS);
+    expect(conns.at(-1)?.closed?.reason).toBe("busy");
+  });
+
+  it("koneksi yang tidak mengirim hello ditutup setelah batas waktu", () => {
+    const room = makeRoom();
+    const idle = new FakeConn("idle");
+    room.open(idle);
+    const a = join(room, "a", "Rara", true);
+    clock += HELLO_TIMEOUT_MS + 1;
+    room.sweepIdle();
+    expect(idle.closed?.reason).toBe("idle");
+    expect(a.closed).toBeNull();
+    // Slot koneksi kembali tersedia.
+    expect(room.open(new FakeConn("baru"))).toBe(true);
+  });
+
+  it("dua pemain yang menganggur lama dihentikan tanpa peringkat", () => {
+    const room = makeRoom();
+    const a = join(room, "a", "Rara", true);
+    const b = join(room, "b", "Budi", false);
+    // Koneksi tetap hidup (ping) tetapi kontrol tidak pernah disentuh.
+    for (let t = 0; t <= IDLE_MATCH_MS + 1000; t += 1000) {
+      room.message(a, encodePing(t));
+      room.message(b, encodePing(t));
+      advance(room, 1000);
+    }
+    expect(a.last("error")?.code).toBe("idle");
+    expect(b.closed?.reason).toBe("idle");
+    expect(room.exists).toBe(false);
+    expect(reports).toHaveLength(0);
+  });
+
+  it("pemain yang aktif tidak dianggap menganggur", () => {
+    const room = makeRoom();
+    const a = join(room, "a", "Rara", true);
+    const b = join(room, "b", "Budi", false);
+    for (let t = 0; t <= IDLE_MATCH_MS + 1000; t += 1000) {
+      room.message(
+        a,
+        encodeInput({ ...emptyInput(room.match!.tick), x: (t / 1000) % 2 ? 0.5 : -0.5 }),
+      );
+      room.message(b, encodePing(t));
+      advance(room, 1000);
+    }
+    expect(room.status).not.toBe("over");
+    expect(a.closed).toBeNull();
   });
 });

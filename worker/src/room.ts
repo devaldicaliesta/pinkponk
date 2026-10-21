@@ -1,9 +1,11 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Env } from "./env";
-import { type Conn, RoomCore } from "./room-core";
+import { playerIdFromSecret } from "./leaderboard-core";
+import { type Conn, HELLO_TIMEOUT_MS, type MatchResult, RoomCore } from "./room-core";
 
 interface Attachment {
   id: string;
+  origin: string | null;
 }
 
 const TICK_INTERVAL_MS = 1000 / 60;
@@ -22,6 +24,7 @@ export class Room extends DurableObject<Env> {
   private core: RoomCore | null = null;
   private interval: ReturnType<typeof setInterval> | null = null;
   private readonly conns = new Map<string, Conn>();
+  private readonly bySocket = new WeakMap<WebSocket, Conn>();
 
   override async fetch(request: Request): Promise<Response> {
     const code = new URL(request.url).pathname.split("/").pop() ?? "";
@@ -30,8 +33,14 @@ export class Room extends DurableObject<Env> {
     const [client, server] = [pair[0], pair[1]];
     this.ctx.acceptWebSocket(server);
     const id = randomHex(8);
-    server.serializeAttachment({ id } satisfies Attachment);
-    core.open(this.connFor(server, id));
+    // Hanya disimpan di memori room selama pertandingan, untuk aturan peringkat.
+    const origin = request.headers.get("CF-Connecting-IP");
+    server.serializeAttachment({ id, origin } satisfies Attachment);
+    if (core.open(this.connFor(server, id, origin))) {
+      setTimeout(() => this.core?.sweepIdle(), HELLO_TIMEOUT_MS + 50);
+    } else {
+      this.conns.delete(id);
+    }
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -68,14 +77,32 @@ export class Room extends DurableObject<Env> {
         now: () => Date.now(),
         randomSeed: () => crypto.getRandomValues(new Uint32Array(1))[0] ?? 1,
         randomToken: () => randomHex(16),
+        reportResult: (r) => {
+          this.ctx.waitUntil(this.report(r));
+        },
       });
     }
     return this.core;
   }
 
-  private connFor(ws: WebSocket, id: string): Conn {
+  private async report(r: MatchResult): Promise<void> {
+    try {
+      const [winnerId, loserId] = await Promise.all([
+        playerIdFromSecret(r.winner.secret),
+        playerIdFromSecret(r.loser.secret),
+      ]);
+      const board = this.env.LEADERBOARD.get(this.env.LEADERBOARD.idFromName("global"));
+      await board.report({ winnerId, winnerName: r.winner.nick, loserId, loserName: r.loser.nick });
+    } catch (err) {
+      // Leaderboard tidak boleh mengganggu pertandingan; cukup dicatat.
+      console.error("leaderboard report failed", err);
+    }
+  }
+
+  private connFor(ws: WebSocket, id: string, origin: string | null): Conn {
     const conn: Conn = {
       id,
+      origin: origin ?? undefined,
       send: (data) => {
         try {
           ws.send(data);
@@ -92,10 +119,15 @@ export class Room extends DurableObject<Env> {
       },
     };
     this.conns.set(id, conn);
+    this.bySocket.set(ws, conn);
     return conn;
   }
 
   private connOf(ws: WebSocket): Conn | null {
+    // Jalur cepat tanpa deserialisasi untuk ±60 pesan/detik per pemain; attachment hanya
+    // dibaca bila objek baru bangun dari hibernasi.
+    const cached = this.bySocket.get(ws);
+    if (cached) return this.conns.has(cached.id) ? cached : null;
     const att = ws.deserializeAttachment() as Attachment | null;
     return att ? (this.conns.get(att.id) ?? null) : null;
   }

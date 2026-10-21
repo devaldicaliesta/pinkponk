@@ -4,6 +4,7 @@ import { useState } from "preact/hooks";
 import type { Session } from "../game/session";
 import { getSettings, useSettings } from "../state/settings";
 import { HowTo } from "./screens/HowTo";
+import { Leaderboard } from "./screens/Leaderboard";
 import { Lobby, type OnlineStart } from "./screens/Lobby";
 import { Nickname } from "./screens/Nickname";
 import { Settings } from "./screens/Settings";
@@ -16,9 +17,10 @@ type Screen =
   | { name: "title" }
   | { name: "nickname"; next: Screen }
   | { name: "howto"; next: Screen }
-  | { name: "setup"; mode: "ai" | "timing" | "local" }
+  | { name: "setup"; mode: "ai" | "timing" | "local" | "gamble" }
   | { name: "online"; code: string | null; mode: PlayMode }
   | { name: "settings" }
+  | { name: "leaderboard" }
   | { name: "loading" }
   | { name: "game"; session: Session; module: GameModule };
 
@@ -45,7 +47,7 @@ export const App = () => {
     setScreen({ name: "title" });
   };
 
-  const startLocal = async (mode: "ai" | "timing" | "local", r: SetupResult) => {
+  const startLocal = async (mode: "ai" | "timing" | "local" | "gamble", r: SetupResult) => {
     setScreen({ name: "loading" });
     const module = await loadGame();
     const bestOf: BestOf = r.bestOf;
@@ -53,10 +55,13 @@ export const App = () => {
     const session =
       mode === "local"
         ? module.createLocalSession(bestOf, ["P1", "P2"])
-        : module.createAiSession(mode === "timing" ? "timing" : "swing", bestOf, difficulty, [
-            nick,
-            "AI",
-          ]);
+        : module.createAiSession(
+            mode === "timing" ? "timing" : "swing",
+            bestOf,
+            difficulty,
+            [nick, "AI"],
+            mode === "gamble",
+          );
     setScreen({ name: "game", session, module });
   };
 
@@ -82,8 +87,11 @@ export const App = () => {
           onSettings={() => setScreen({ name: "settings" })}
           onHowTo={() => setScreen({ name: "howto", next: { name: "title" } })}
           onNickname={() => setScreen({ name: "nickname", next: { name: "title" } })}
+          onLeaderboard={() => setScreen({ name: "leaderboard" })}
         />
       );
+    case "leaderboard":
+      return <Leaderboard onBack={toTitle} />;
     case "nickname":
       return (
         <Nickname
@@ -106,6 +114,7 @@ export const App = () => {
         <Lobby
           initialCode={screen.code}
           initialMode={screen.mode}
+          initialGamble={false}
           onBack={toTitle}
           onStart={(s) => void startOnline(s)}
         />

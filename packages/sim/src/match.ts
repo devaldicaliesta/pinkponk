@@ -15,6 +15,19 @@ import {
   TABLE_HALF_L,
   TICK_RATE,
 } from "./constants";
+import {
+  addStack,
+  canActivate,
+  createGamble,
+  type GambleState,
+  type Mods,
+  modsFor,
+  NO_MODS,
+  rollAbility,
+  STACK_PER_POINT,
+  STACK_PER_RETURN,
+  tickPoint,
+} from "./gamble";
 import { sanitizeInput } from "./input";
 import { atHitPoint, predictCrossing } from "./predict";
 import { createRng, type Rng, range } from "./rng";
@@ -66,6 +79,8 @@ interface PlayerSlot {
   feverUntil: number;
   /** Tujuan bat otomatis di mode timing. */
   autoX: number;
+  gamble: GambleState;
+  abilityPressed: boolean;
 }
 
 const HISTORY_LIMIT = 90;
@@ -83,6 +98,8 @@ const createSlot = (speed: number): PlayerSlot => ({
   streak: 0,
   feverUntil: 0,
   autoX: 0,
+  gamble: createGamble(),
+  abilityPressed: false,
 });
 
 export class Match {
@@ -127,6 +144,7 @@ export class Match {
     slot.history.push(input);
     if (slot.history.length > HISTORY_LIMIT) slot.history.shift();
     if (input.serve) slot.servePressed = true;
+    if (input.ability) slot.abilityPressed = true;
     if (input.tapMs !== null) {
       slot.taps.push(input.tapMs);
       if (slot.taps.length > 16) slot.taps.shift();
@@ -136,6 +154,7 @@ export class Match {
   step(): void {
     this.tick += 1;
     this.events = [];
+    this.handleAbilityPresses();
     this.moveBats();
     switch (this.phase) {
       case "countdown":
@@ -168,6 +187,9 @@ export class Match {
       this.players[0].servePressed = false;
       this.players[1].servePressed = false;
       this.placeBallForServe();
+      for (const p of [0, 1] as const) {
+        if (this.players[p].gamble.armed) this.activateAbility(p);
+      }
     }
   }
 
@@ -184,7 +206,8 @@ export class Match {
     for (const p of [0, 1] as const) {
       const slot = this.players[p];
       const target = this.config.mode === "timing" ? slot.autoX : slot.latest.x;
-      const maxStep = slot.batSpeed * DT * (this.config.mode === "timing" ? 1.6 : 1);
+      const boost = this.config.mode === "timing" ? 1.6 : 1;
+      const maxStep = slot.batSpeed * this.mods(p).batSpeed * DT * boost;
       const d = Math.max(-maxStep, Math.min(maxStep, target - slot.batX));
       slot.batX = Math.max(-BAT_MAX_X, Math.min(BAT_MAX_X, slot.batX + d));
     }
@@ -238,7 +261,10 @@ export class Match {
     }
     if (!this.pending && rally.phase === "await-return" && atHitPoint(this.ball, rally.expected)) {
       this.pending = { player: rally.expected, tick: this.tick, ball: copyBall(this.ball) };
-      if (this.config.mode === "timing") this.players[rally.expected].batX = this.ball.pos.x;
+      if (this.config.mode === "timing") {
+        const x = Math.max(-BAT_MAX_X, Math.min(BAT_MAX_X, this.ball.pos.x));
+        this.players[rally.expected].batX = x;
+      }
     }
     if (this.pending) this.tryResolvePending();
     if (this.phase === "rally" && this.tick - this.lastHitTick > RALLY_TIMEOUT_TICKS) {
@@ -286,19 +312,22 @@ export class Match {
     if (!seen && this.tick < pending.tick + MAX_LAG_TICKS) return;
     const input = seen ?? slot.latest;
     // Posisi bat versi pemain diterima selama masih masuk akal terhadap posisi di server.
+    const mods = this.mods(pending.player);
     const lagS = Math.max(0, this.tick - input.viewTick) / TICK_RATE;
-    const tolerance = slot.batSpeed * lagS + 0.05;
+    const tolerance = slot.batSpeed * mods.batSpeed * lagS + 0.05;
     const x = Math.max(slot.batX - tolerance, Math.min(slot.batX + tolerance, input.x));
     const offset = Math.abs(pending.ball.pos.x - x);
-    if (offset > REACH) {
-      this.missPending(pending, null);
+    if (offset > REACH * mods.reach) {
+      if (!this.shieldSave(pending)) this.missPending(pending, null);
       return;
     }
     const shot = swingShot(
       pending.ball.pos,
       pending.player,
-      { aim: input.aim, lift: input.lift, power: input.power, offset },
+      // Akurasi tepi bat diukur relatif terhadap jangkauan bat saat ini.
+      { aim: input.aim, lift: input.lift, power: input.power, offset: offset / mods.reach },
       this.rng,
+      { speed: mods.shotSpeed, sigma: mods.sigma },
     );
     this.applyHit(pending, shot, null);
   }
@@ -313,17 +342,20 @@ export class Match {
       const windowTicks = Math.ceil(TIMING_WINDOWS_MS.edge / MS_PER_TICK);
       const playerSawWindow = seenTick >= pending.tick + windowTicks;
       const deadline = pending.tick + windowTicks + MAX_LAG_TICKS;
-      if (playerSawWindow || this.tick >= deadline) this.missPending(pending, "miss");
+      if (playerSawWindow || this.tick >= deadline) {
+        if (!this.shieldSave(pending)) this.missPending(pending, "miss");
+      }
       return;
     }
     const grade = gradeTiming(tap - idealMs);
     slot.taps = [];
     if (grade === "miss") {
-      this.missPending(pending, "miss");
+      if (!this.shieldSave(pending)) this.missPending(pending, "miss");
       return;
     }
     const fever = this.inFever(pending.player) && grade === "perfect" ? 1.15 : 1;
-    const factor = rallySpeedFactor(this.rally?.hits ?? 0) * fever;
+    const boost = this.mods(pending.player).shotSpeed;
+    const factor = rallySpeedFactor(this.rally?.hits ?? 0) * fever * boost;
     const shot = timingShot(
       pending.ball.pos,
       pending.player,
@@ -358,6 +390,7 @@ export class Match {
     this.players[pending.player].taps = [];
     this.players[pending.player].armMs = Number.POSITIVE_INFINITY;
     this.lastHitTick = pending.tick;
+    if (this.config.gamble) addStack(this.players[pending.player].gamble, STACK_PER_RETURN);
     this.events.push({ type: "hit", player: pending.player, shot: shot.kind, grade });
     // Pukulan terjadi di tick `pending.tick`; majukan bola ke tick sekarang.
     this.ball = copyBall(pending.ball);
@@ -416,7 +449,12 @@ export class Match {
       return;
     }
     this.events.push({ type: "point", winner: result.winner, reason: result.reason });
-    const outcome = awardPoint(this.score, result.winner);
+    let outcome = awardPoint(this.score, result.winner);
+    // Poin ganda tidak melewati batas game: game yang sudah dimenangkan tidak ditambah lagi.
+    if (this.mods(result.winner).pointValue > 1 && outcome.gameWon === null) {
+      outcome = awardPoint(this.score, result.winner);
+    }
+    this.finishPointGamble(result.winner);
     if (outcome.gameWon !== null) this.events.push({ type: "game", winner: outcome.gameWon });
     if (outcome.matchWon !== null) {
       this.winner = outcome.matchWon;
@@ -437,6 +475,58 @@ export class Match {
     }
     this.server = currentServer(this.score);
     this.setPhase("serve");
+  }
+
+  /** Pengali kemampuan Gamble yang berlaku untuk pemain `p` saat ini. */
+  mods(p: Side): Mods {
+    if (!this.config.gamble) return NO_MODS;
+    return modsFor(this.players[p].gamble, this.players[other(p)].gamble);
+  }
+
+  private handleAbilityPresses(): void {
+    for (const p of [0, 1] as const) {
+      const slot = this.players[p];
+      if (!slot.abilityPressed) continue;
+      slot.abilityPressed = false;
+      if (!this.config.gamble || !canActivate(slot.gamble) || this.phase === "over") continue;
+      // Di tengah reli kemampuan baru aktif saat poin berikutnya dimulai, agar adil.
+      if (this.phase === "rally" || this.phase === "toss") slot.gamble.armed = true;
+      else this.activateAbility(p);
+    }
+  }
+
+  private activateAbility(p: Side): void {
+    const g = this.players[p].gamble;
+    g.armed = false;
+    if (!canActivate(g)) return;
+    const { ability, points } = rollAbility(this.rng);
+    g.stack = 0;
+    g.ability = ability;
+    g.pointsLeft = points;
+    g.shieldUsed = false;
+    this.events.push({ type: "ability", player: p, ability, points });
+  }
+
+  /** Perisai: bola yang terlewat dikembalikan sekali dengan pukulan blok lemah. */
+  private shieldSave(pending: PendingHit): boolean {
+    if (!this.mods(pending.player).shield) return false;
+    this.players[pending.player].gamble.shieldUsed = true;
+    this.events.push({ type: "shield", player: pending.player });
+    const shot = swingShot(
+      pending.ball.pos,
+      pending.player,
+      { aim: 0, lift: 0.3, power: 0.15, offset: 0 },
+      this.rng,
+    );
+    this.applyHit(pending, shot, null);
+    return true;
+  }
+
+  private finishPointGamble(winner: Side): void {
+    if (!this.config.gamble) return;
+    addStack(this.players[winner].gamble, STACK_PER_POINT);
+    tickPoint(this.players[0].gamble);
+    tickPoint(this.players[1].gamble);
   }
 
   /** Pemain `loser` keluar dari pertandingan (misalnya putus koneksi terlalu lama). */

@@ -1,5 +1,6 @@
 import type { Side } from "./ball";
 import { MS_PER_TICK, TICK_RATE } from "./constants";
+import { canActivate } from "./gamble";
 import type { Match } from "./match";
 import { createRng, gaussian, nextFloat, type Rng, range } from "./rng";
 import { other } from "./score";
@@ -83,6 +84,7 @@ export class AiController {
       power: this.plan.power,
       serve: false,
       tapMs: null,
+      ability: this.wantsAbility(m),
     };
     if (m.phase === "serve" && m.server === this.side) {
       if (this.serveAt < m.phaseTick) {
@@ -97,8 +99,11 @@ export class AiController {
     if (hits !== this.lastHits) {
       this.lastHits = hits;
       if (m.rally && m.rally.lastHitter !== this.side) {
-        this.reactAt = m.tick + Math.round((this.profile.reactionMs / 1000) * TICK_RATE);
-        this.errorX = gaussian(this.rng, this.profile.errorM);
+        // Bola hantu lawan sulit dibaca: AI bereaksi lebih lambat dan lebih meleset.
+        const ghost = m.config.gamble && m.players[other(this.side)].gamble.ability === "ghost";
+        const reaction = this.profile.reactionMs + (ghost ? 140 : 0);
+        this.reactAt = m.tick + Math.round((reaction / 1000) * TICK_RATE);
+        this.errorX = gaussian(this.rng, this.profile.errorM * (ghost ? 2.2 : 1));
         this.plannedTapMs = null;
         this.tapSent = false;
         this.newPlan(m);
@@ -120,6 +125,12 @@ export class AiController {
       this.tapSent = true;
     }
     return input;
+  }
+
+  // Kemampuan dipakai di sela poin, seperti pemain manusia yang menunggu bola mati.
+  private wantsAbility(m: Match): boolean {
+    if (!m.config.gamble || !canActivate(m.players[this.side].gamble)) return false;
+    return m.phase === "point" || (m.phase === "serve" && m.tick - m.phaseTick > TICK_RATE / 3);
   }
 
   // Reli yang makin cepat dan smash lawan membuat timing AI makin meleset.

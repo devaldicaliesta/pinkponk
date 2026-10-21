@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --port 8787",
-    "typecheck": "tsc -p .",
+    "typecheck": "tsc -p . && tsc -p stress",
     "deploy:dev": "wrangler deploy --env dev",
     "deploy:production": "wrangler deploy --env production",
     "dry-run": "wrangler deploy --dry-run --env production --outdir .wrangler/dry"

@@ -11,7 +11,7 @@ export interface SetupResult {
 }
 
 interface Props {
-  mode: "ai" | "timing" | "local";
+  mode: "ai" | "timing" | "local" | "gamble";
   onStart(r: SetupResult): void;
   onBack(): void;
 }
@@ -63,6 +63,7 @@ export const Setup = ({ mode, onStart, onBack }: Props) => {
               ? t("game.hintTiming")
               : t("game.hintSwing")}
         </p>
+        {mode === "gamble" && <p class="muted">{t("gamble.hint")}</p>}
         <button
           type="button"
           class="btn btn--primary btn--block"

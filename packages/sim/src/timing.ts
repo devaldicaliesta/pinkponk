@@ -9,8 +9,8 @@ export const TIMING_WINDOWS_MS = {
 
 export const FEVER_STREAK = 3;
 export const FEVER_MS = 8000;
-export const RALLY_SPEEDUP_PER_HIT = 0.03;
-export const RALLY_SPEEDUP_MAX = 0.35;
+export const RALLY_SPEEDUP_PER_HIT = 0.02;
+export const RALLY_SPEEDUP_MAX = 0.25;
 export const EDGE_FAIL_CHANCE = 0.4;
 
 /** Nilai tap berdasarkan selisih (ms) terhadap waktu ideal; negatif = terlalu awal. */

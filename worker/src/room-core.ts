@@ -12,6 +12,7 @@ import {
   PAUSE_MAX_MS,
   PAUSES_PER_MATCH,
   type PauseReason,
+  PROTOCOL_VERSION,
   parseClientControl,
   type RoomConfig,
   type RoomErrorCode,
@@ -22,6 +23,8 @@ import {
   Match,
   type MatchEvent,
   MS_PER_TICK,
+  type PlayerInput,
+  type PlayMode,
   type Side,
   validateNickname,
 } from "@pinkponk/sim";
@@ -29,6 +32,8 @@ import { TokenBucket } from "./token-bucket";
 
 export interface Conn {
   readonly id: string;
+  /** Penanda jaringan asal (misalnya IP) untuk mendeteksi dua kursi dari perangkat sama. */
+  readonly origin?: string;
   send(data: string | ArrayBuffer): void;
   close(code: number, reason: string): void;
 }
@@ -41,7 +46,27 @@ interface Seat {
   rematch: boolean;
   pausesLeft: number;
   lastSeen: number;
+  /** Terakhir kali pemain benar-benar menggerakkan kontrol (bukan sekadar input otomatis). */
+  lastActive: number;
+  lastX: number;
+  /** Rahasia pemain untuk leaderboard; tidak pernah dikirim ke pemain lain. */
+  secret: string | null;
+  origin: string | null;
 }
+
+export interface MatchResult {
+  winner: { secret: string; nick: string };
+  loser: { secret: string; nick: string };
+  mode: PlayMode;
+  gamble: boolean;
+  walkover: boolean;
+  points: number;
+}
+
+// Pertandingan terlalu pendek tidak dihitung agar peringkat tidak bisa dinaikkan dengan
+// membuat room lalu langsung keluar.
+export const MIN_RATED_POINTS = 6;
+export const MIN_RATED_POINTS_WALKOVER = 3;
 
 export type RoomStatus = "lobby" | "playing" | "paused" | "over";
 
@@ -52,12 +77,26 @@ export const SILENCE_MS = 5_000;
 const SNAPSHOT_EVERY_TICKS = 4;
 const MAX_CATCHUP_TICKS = 24;
 const MESSAGES_PER_SECOND = 60;
+// Satu room hanya butuh 2 kursi; sisanya ruang untuk sambung ulang dan tab ganda. Koneksi
+// yang tidak kunjung mengirim hello ditutup agar socket menganggur tidak menumpuk.
+export const MAX_CONNS = 6;
+export const HELLO_TIMEOUT_MS = 10_000;
+// Kedua pemain tidak menyentuh kontrol selama ini: pertandingan dihentikan agar room yang
+// ditinggal (dua tab terbuka tanpa pemain) tidak terus memakai CPU server.
+export const IDLE_MATCH_MS = 180_000;
 
 export interface RoomDeps {
   now(): number;
   randomSeed(): number;
   randomToken(): string;
+  /** Dipanggil sekali saat pertandingan yang memenuhi syarat peringkat selesai. */
+  reportResult?(result: MatchResult): void;
 }
+
+const gambleView = (m: Match, p: Side) => {
+  const g = m.players[p].gamble;
+  return { stack: g.stack, ability: g.ability, pointsLeft: g.pointsLeft, armed: g.armed };
+};
 
 /** Logika satu room online, terpisah dari runtime Durable Object agar mudah dites. */
 export class RoomCore {
@@ -71,8 +110,12 @@ export class RoomCore {
   private pauseDeadline = 0;
   private pauseReason: PauseReason | null = null;
   private pendingEvents: MatchEvent[] = [];
+  private pointsPlayed = 0;
+  private reported = false;
   private readonly buckets = new Map<string, TokenBucket>();
   private readonly seatOf = new Map<string, Side>();
+  private readonly openedAt = new Map<string, number>();
+  private readonly conns = new Map<string, Conn>();
 
   constructor(
     readonly code: string,
@@ -92,8 +135,33 @@ export class RoomCore {
     return this.status === "playing" || this.status === "paused";
   }
 
-  open(conn: Conn): void {
+  /** Mengembalikan false bila room sudah penuh koneksi; pemanggil harus menutup socket. */
+  open(conn: Conn): boolean {
+    if (this.buckets.size >= MAX_CONNS) {
+      this.sendTo(conn, { t: "error", code: "busy" });
+      conn.close(1013, "busy");
+      return false;
+    }
     this.buckets.set(conn.id, new TokenBucket(MESSAGES_PER_SECOND, this.deps.now()));
+    this.openedAt.set(conn.id, this.deps.now());
+    this.conns.set(conn.id, conn);
+    return true;
+  }
+
+  /** Tutup koneksi yang terbuka lebih dari HELLO_TIMEOUT_MS tanpa mendapat kursi. */
+  sweepIdle(): void {
+    const now = this.deps.now();
+    for (const [id, at] of this.openedAt) {
+      const conn = this.conns.get(id);
+      if (this.seatOf.has(id) || !conn) {
+        this.openedAt.delete(id);
+        continue;
+      }
+      if (now - at >= HELLO_TIMEOUT_MS) {
+        conn.close(1008, "idle");
+        this.close(conn);
+      }
+    }
   }
 
   message(conn: Conn, data: string | ArrayBuffer): void {
@@ -140,6 +208,7 @@ export class RoomCore {
         }
         if (seat !== undefined && this.match && this.status === "playing") {
           this.match.pushInput(seat, input);
+          this.trackActivity(seat, input);
         }
         return;
       }
@@ -150,6 +219,8 @@ export class RoomCore {
 
   close(conn: Conn): void {
     this.buckets.delete(conn.id);
+    this.openedAt.delete(conn.id);
+    this.conns.delete(conn.id);
     const seat = this.seatOf.get(conn.id);
     this.seatOf.delete(conn.id);
     if (seat === undefined) return;
@@ -192,16 +263,22 @@ export class RoomCore {
         return;
       }
     }
+    if (this.seats.every((s) => s && now - s.lastActive > IDLE_MATCH_MS)) {
+      this.abandon();
+      return;
+    }
     const target = Math.floor((now - this.startMs) / MS_PER_TICK);
     let steps = Math.min(MAX_CATCHUP_TICKS, target - m.tick);
     while (steps-- > 0) {
       m.step();
+      for (const e of m.events) if (e.type === "point" && e.reason !== "let") this.pointsPlayed++;
       this.pendingEvents.push(...m.events);
       if (m.tick % SNAPSHOT_EVERY_TICKS === 0) this.sendSnapshot();
     }
     if (m.phase === "over") {
       this.sendSnapshot();
       this.status = "over";
+      this.report(false);
     }
   }
 
@@ -236,6 +313,10 @@ export class RoomCore {
   }
 
   private hello(conn: Conn, msg: Extract<ClientControl, { t: "hello" }>): void {
+    if (msg.v !== PROTOCOL_VERSION) {
+      this.reject(conn, "outdated");
+      return;
+    }
     const nick = validateNickname(msg.nick);
     if (!nick.ok) {
       this.reject(conn, "bad-nickname");
@@ -247,7 +328,7 @@ export class RoomCore {
       (s) => s !== null && s.conn === null && msg.token !== null && s.token === msg.token,
     );
     if (resumed === 0 || resumed === 1) {
-      this.resume(conn, resumed);
+      this.resume(conn, resumed, msg.player);
       return;
     }
 
@@ -257,7 +338,7 @@ export class RoomCore {
         return;
       }
       this.config = msg.config;
-      this.seat(conn, 0, nick.value);
+      this.seat(conn, 0, nick.value, msg.player);
       return;
     }
     const free = this.seats.indexOf(null);
@@ -266,11 +347,11 @@ export class RoomCore {
       return;
     }
     const taken = this.seats.filter((s): s is Seat => s !== null).map((s) => s.nick);
-    this.seat(conn, free, dedupeNickname(nick.value, taken));
+    this.seat(conn, free, dedupeNickname(nick.value, taken), msg.player);
     if (this.seats[0]?.conn && this.seats[1]?.conn) this.startMatch();
   }
 
-  private seat(conn: Conn, side: Side, nick: string): void {
+  private seat(conn: Conn, side: Side, nick: string, secret: string | null): void {
     const token = this.deps.randomToken();
     this.seats[side] = {
       conn,
@@ -280,15 +361,21 @@ export class RoomCore {
       rematch: false,
       pausesLeft: PAUSES_PER_MATCH,
       lastSeen: this.deps.now(),
+      lastActive: this.deps.now(),
+      lastX: 0,
+      secret,
+      origin: conn.origin ?? null,
     };
     this.seatOf.set(conn.id, side);
     this.sendTo(conn, { t: "welcome", you: side, code: this.code, token });
     this.broadcastLobby();
   }
 
-  private resume(conn: Conn, side: Side): void {
+  private resume(conn: Conn, side: Side, secret: string | null): void {
     const s = this.seats[side];
     if (!s) return;
+    // Token kursi sudah membuktikan pemiliknya; rahasia lama tidak boleh diganti di tengah jalan.
+    s.secret ??= secret;
     s.conn = conn;
     s.disconnectedAt = null;
     s.lastSeen = this.deps.now();
@@ -324,7 +411,11 @@ export class RoomCore {
     // Waktu jeda tidak dihitung: geser titik awal simulasi.
     const now = this.deps.now();
     this.startMs += now - this.pausedAt;
-    for (const s of this.seats) if (s) s.lastSeen = now;
+    for (const s of this.seats) {
+      if (!s) continue;
+      s.lastSeen = now;
+      s.lastActive = now;
+    }
     this.status = "playing";
     this.pauseReason = null;
     this.broadcast({ t: "resumed" });
@@ -336,14 +427,18 @@ export class RoomCore {
     this.match = new Match({
       mode: this.config.mode,
       bestOf: this.config.bestOf,
+      gamble: this.config.gamble,
       seed: this.deps.randomSeed(),
     });
     this.startMs = this.deps.now();
     this.pendingEvents = [];
+    this.pointsPlayed = 0;
+    this.reported = false;
     for (const s of [a, b]) {
       s.rematch = false;
       s.pausesLeft = PAUSES_PER_MATCH;
       s.lastSeen = this.deps.now();
+      s.lastActive = this.deps.now();
     }
     this.pauseReason = null;
     this.status = "playing";
@@ -368,6 +463,57 @@ export class RoomCore {
     }
     this.status = "over";
     this.sendSnapshot();
+    this.report(true);
+  }
+
+  private trackActivity(seat: Side, input: PlayerInput): void {
+    const s = this.seats[seat];
+    if (!s) return;
+    if (
+      input.serve ||
+      input.tapMs !== null ||
+      input.ability ||
+      Math.abs(input.x - s.lastX) > 0.02
+    ) {
+      s.lastActive = this.deps.now();
+    }
+    s.lastX = input.x;
+  }
+
+  /** Dua pemain menganggur: hentikan tanpa pemenang dan tanpa peringkat. */
+  private abandon(): void {
+    this.status = "over";
+    this.reported = true;
+    for (const s of this.seats) {
+      const conn = s?.conn;
+      if (!conn) continue;
+      this.sendTo(conn, { t: "error", code: "idle" });
+      conn.close(1008, "idle");
+    }
+    this.seats[0] = null;
+    this.seats[1] = null;
+    this.config = null;
+  }
+
+  private report(walkover: boolean): void {
+    const m = this.match;
+    const [a, b] = this.seats;
+    if (this.reported || !m || m.winner === null || !a || !b || !this.config) return;
+    this.reported = true;
+    const min = walkover ? MIN_RATED_POINTS_WALKOVER : MIN_RATED_POINTS;
+    if (this.pointsPlayed < min || !a.secret || !b.secret || a.secret === b.secret) return;
+    // Dua kursi dari jaringan yang sama kemungkinan satu orang dengan dua tab.
+    if (a.origin !== null && a.origin === b.origin) return;
+    const w = m.winner === 0 ? a : b;
+    const l = m.winner === 0 ? b : a;
+    this.deps.reportResult?.({
+      winner: { secret: w.secret as string, nick: w.nick },
+      loser: { secret: l.secret as string, nick: l.nick },
+      mode: this.config.mode,
+      gamble: this.config.gamble,
+      walkover,
+      points: this.pointsPlayed,
+    });
   }
 
   private serverMs(): number {
@@ -391,6 +537,7 @@ export class RoomCore {
       rallyHits: m.rally?.hits ?? 0,
       ball: m.ball,
       bats: [m.players[0].batX, m.players[1].batX],
+      gamble: [gambleView(m, 0), gambleView(m, 1)],
       events: this.pendingEvents,
     });
     this.pendingEvents = [];

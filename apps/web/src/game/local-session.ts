@@ -1,3 +1,4 @@
+import type { GambleView } from "@pinkponk/protocol";
 import {
   AI_PROFILES,
   AiController,
@@ -22,11 +23,17 @@ export interface LocalOptions {
   names: [string, string];
   inputs: [HumanInput, HumanInput | null];
   calibrationMs: number;
+  gamble: boolean;
 }
 
 const MAX_STEPS_PER_FRAME = 24;
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+const gambleView = (m: Match, p: Side): GambleView => {
+  const g = m.players[p].gamble;
+  return { stack: g.stack, ability: g.ability, pointsLeft: g.pointsLeft, armed: g.armed };
+};
 
 const randomSeed = (): number => crypto.getRandomValues(new Uint32Array(1))[0] ?? 1;
 
@@ -37,6 +44,8 @@ export class LocalSession implements Session {
   readonly names: [string, string];
   readonly mode: PlayMode;
   readonly bestOf: number;
+  readonly gamble: boolean;
+  readonly difficulty: Difficulty | null;
   match: Match;
   private ai: AiController | null;
   private events: MatchEvent[] = [];
@@ -57,6 +66,8 @@ export class LocalSession implements Session {
     this.names = opts.names;
     this.mode = opts.mode;
     this.bestOf = opts.bestOf;
+    this.gamble = opts.gamble;
+    this.difficulty = opts.difficulty;
     this.match = this.createMatch();
     this.ai = this.createAi();
   }
@@ -68,6 +79,7 @@ export class LocalSession implements Session {
       bestOf: this.opts.bestOf,
       seed: randomSeed(),
       batSpeed: [BAT_SPEED, aiSpeed],
+      gamble: this.opts.gamble,
     });
   }
 
@@ -100,7 +112,10 @@ export class LocalSession implements Session {
   private stepOnce(): void {
     const m = this.match;
     const [p0, p1] = this.opts.inputs;
-    m.pushInput(0, this.autoplay ? this.autoplay.input(m) : p0.read(m.tick, this.wallToSimMs));
+    const human = p0.read(m.tick, this.wallToSimMs);
+    // Autoplay (hook E2E) mengendalikan bat, tetapi tombol kemampuan tetap dari pemain.
+    const auto = this.autoplay?.input(m);
+    m.pushInput(0, auto ? { ...auto, ability: auto.ability || human.ability } : human);
     if (this.ai) m.pushInput(1, this.ai.input(m));
     else if (p1) m.pushInput(1, p1.read(m.tick, this.wallToSimMs));
     this.prevBall = { ...m.ball.pos };
@@ -126,7 +141,12 @@ export class LocalSession implements Session {
         lerp(this.prevBats[0], m.players[0].batX, this.alpha()),
         lerp(this.prevBats[1], m.players[1].batX, this.alpha()),
       ],
+      gamble: [gambleView(m, 0), gambleView(m, 1)],
     };
+  }
+
+  pressAbility(): void {
+    this.opts.inputs[0].pressAbility();
   }
 
   // Layar jarang pas di tick simulasi (120 Hz); tampilkan posisi di antara dua tick

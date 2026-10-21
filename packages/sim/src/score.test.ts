@@ -65,4 +65,13 @@ describe("skor", () => {
     for (let i = 0; i < 11; i++) won = awardPoint(s, 0).matchWon;
     expect(won).toBe(0);
   });
+
+  it("golden point: di 14–14 poin berikutnya memenangkan game", () => {
+    const s = createScore(1, 0);
+    s.points = [14, 14];
+    expect(awardPoint(s, 1).gameWon).toBe(1);
+    const t = createScore(1, 0);
+    t.points = [13, 13];
+    expect(awardPoint(t, 0).gameWon).toBeNull();
+  });
 });

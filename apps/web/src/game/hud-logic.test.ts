@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { badgeFor, countdownFor, serveHintFor } from "./hud-logic";
-import type { MatchView } from "./session";
+import { type MatchView, NO_GAMBLE } from "./session";
 
 const view = (patch: Partial<MatchView>): MatchView => ({
   tick: 1000,
@@ -14,6 +14,7 @@ const view = (patch: Partial<MatchView>): MatchView => ({
   rallyHits: 0,
   ball: { pos: { x: 0, y: 0, z: 0 }, vel: { x: 0, y: 0, z: 0 }, spin: { x: 0, y: 0, z: 0 } },
   bats: [0, 0],
+  gamble: [NO_GAMBLE, NO_GAMBLE],
   ...patch,
 });
 

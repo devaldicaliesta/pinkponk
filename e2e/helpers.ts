@@ -6,7 +6,14 @@ export interface TestHooks {
   crossing(): { atMs: number } | null;
   viewMs(): number;
   tapNow(): void;
-  view(): { phase: string; points: [number, number]; tick: number; winner: number | null };
+  fillStack(): void;
+  view(): {
+    phase: string;
+    points: [number, number];
+    tick: number;
+    winner: number | null;
+    gamble: { stack: number; ability: string | null; armed: boolean }[];
+  };
 }
 
 declare global {
@@ -49,7 +56,11 @@ export const serveNow = async (page: Page) => {
   await waitForPhase(page, "rally");
 };
 
-export const startAiGame = async (page: Page, mode: "ai" | "timing", difficulty = "Mudah") => {
+export const startAiGame = async (
+  page: Page,
+  mode: "ai" | "timing" | "gamble",
+  difficulty = "Mudah",
+) => {
   await page.goto("/");
   await page.getByTestId(`mode-${mode}`).click();
   await page.getByRole("button", { name: difficulty, exact: true }).click();

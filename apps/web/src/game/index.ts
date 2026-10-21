@@ -17,12 +17,14 @@ export const createAiSession = (
   bestOf: BestOf,
   difficulty: Difficulty,
   names: [string, string],
+  gamble = false,
 ) =>
   new LocalSession({
     mode,
     bestOf,
     difficulty,
     names,
+    gamble,
     inputs: [
       new CombinedInput({ element: surface(), keys: KEYS_SOLO, pointer: true, gamepad: true }),
       null,
@@ -41,6 +43,7 @@ export const createLocalSession = (bestOf: BestOf, names: [string, string]) =>
       new CombinedInput({ element: surface(), keys: KEYS_P2, pointer: false, gamepad: false }),
     ],
     calibrationMs: 0,
+    gamble: false,
   });
 
 export const createOnlineSession = (

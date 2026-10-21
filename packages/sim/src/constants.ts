@@ -4,6 +4,10 @@
 export const TICK_RATE = 120;
 export const DT = 1 / TICK_RATE;
 export const MS_PER_TICK = 1000 / TICK_RATE;
+// Bola sengaja diperlambat untuk layar HP: waktu fisika bola berjalan sekian kali waktu nyata.
+// Bentuk lintasan tetap seperti fisika asli, hanya durasinya lebih panjang; bat tetap waktu nyata.
+export const BALL_TIME_SCALE = 0.72;
+export const BALL_DT = DT * BALL_TIME_SCALE;
 
 export const TABLE_HALF_W = 0.7625;
 export const TABLE_HALF_L = 1.37;
@@ -19,7 +23,7 @@ export const MAGNUS_K = 0.004;
 export const TABLE_RESTITUTION = 0.89;
 // Bagian slip permukaan yang dihapus saat memantul (maks 0,4 = menggelinding penuh).
 export const TABLE_FRICTION = 0.22;
-export const SPIN_DECAY_PER_TICK = 0.9995;
+export const SPIN_DECAY_PER_TICK = 0.9995 ** BALL_TIME_SCALE;
 
 // Titik pukul berada sedikit di belakang ujung meja.
 export const HIT_PLANE_Z = TABLE_HALF_L + 0.22;

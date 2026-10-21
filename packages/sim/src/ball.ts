@@ -1,7 +1,7 @@
 import {
+  BALL_DT,
   BALL_R,
   DRAG_K,
-  DT,
   FLOOR_Y,
   GRAVITY,
   MAGNUS_K,
@@ -42,9 +42,9 @@ export const isOverTable = (x: number, z: number): boolean =>
 const applyForces = (b: Ball): void => {
   const speed = lengthOf(b.vel);
   const magnus = cross(b.spin, b.vel);
-  b.vel.x += (-DRAG_K * speed * b.vel.x + MAGNUS_K * magnus.x) * DT;
-  b.vel.y += (-GRAVITY - DRAG_K * speed * b.vel.y + MAGNUS_K * magnus.y) * DT;
-  b.vel.z += (-DRAG_K * speed * b.vel.z + MAGNUS_K * magnus.z) * DT;
+  b.vel.x += (-DRAG_K * speed * b.vel.x + MAGNUS_K * magnus.x) * BALL_DT;
+  b.vel.y += (-GRAVITY - DRAG_K * speed * b.vel.y + MAGNUS_K * magnus.y) * BALL_DT;
+  b.vel.z += (-DRAG_K * speed * b.vel.z + MAGNUS_K * magnus.z) * BALL_DT;
 };
 
 // Gesekan saat kontak dengan meja: mengurangi slip titik kontak dan memindahkan
@@ -85,9 +85,9 @@ export const stepBall = (b: Ball): BallContact | null => {
   const prevZ = b.pos.z;
   const prevY = b.pos.y;
   applyForces(b);
-  b.pos.x += b.vel.x * DT;
-  b.pos.y += b.vel.y * DT;
-  b.pos.z += b.vel.z * DT;
+  b.pos.x += b.vel.x * BALL_DT;
+  b.pos.y += b.vel.y * BALL_DT;
+  b.pos.z += b.vel.z * BALL_DT;
   b.spin.x *= SPIN_DECAY_PER_TICK;
   b.spin.y *= SPIN_DECAY_PER_TICK;
   b.spin.z *= SPIN_DECAY_PER_TICK;

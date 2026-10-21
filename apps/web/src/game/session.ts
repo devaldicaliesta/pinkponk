@@ -1,4 +1,5 @@
-import type { MatchEvent, MatchPhase, PlayMode, Side, Vec3 } from "@pinkponk/sim";
+import type { GambleView } from "@pinkponk/protocol";
+import type { Difficulty, MatchEvent, MatchPhase, PlayMode, Side, Vec3 } from "@pinkponk/sim";
 
 export interface BallView {
   pos: Vec3;
@@ -18,7 +19,10 @@ export interface MatchView {
   rallyHits: number;
   ball: BallView;
   bats: [number, number];
+  gamble: [GambleView, GambleView];
 }
+
+export const NO_GAMBLE: GambleView = { stack: 0, ability: null, pointsLeft: 0, armed: false };
 
 export interface CrossingView {
   /** ms simulasi saat bola tiba di titik pukul. */
@@ -46,6 +50,12 @@ export interface Session {
   readonly you: Side | null;
   readonly names: [string, string];
   readonly bestOf: number;
+  /** Mode Gamble aktif (stack dan roulette kemampuan). */
+  readonly gamble: boolean;
+  /** Tingkat AI lawan; null untuk online dan 2 pemain lokal. */
+  readonly difficulty: Difficulty | null;
+  /** Tombol kemampuan ditekan (tombol layar atau keyboard). */
+  pressAbility(): void;
   /** Majukan state sampai waktu dinding `wallMs`. */
   update(wallMs: number): void;
   view(): MatchView;

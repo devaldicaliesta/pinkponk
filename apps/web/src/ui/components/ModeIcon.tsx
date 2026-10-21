@@ -1,5 +1,5 @@
 // Ikon mode digambar sebagai SVG sederhana bergaya garis tebal (tanpa emoji).
-export type ModeIconName = "ai" | "local" | "online" | "timing";
+export type ModeIconName = "ai" | "local" | "online" | "timing" | "gamble";
 
 export const ModeIcon = ({ name }: { name: ModeIconName }) => (
   <svg class="mode-card__icon" viewBox="0 0 64 64" aria-hidden="true">
@@ -32,6 +32,16 @@ export const ModeIcon = ({ name }: { name: ModeIconName }) => (
       <g fill="none" stroke="var(--pink)" stroke-width="4" stroke-linecap="round">
         <circle cx="32" cy="32" r="16" />
         <path d="M16 32h32M32 16c-8 9-8 23 0 32M32 16c8 9 8 23 0 32" />
+      </g>
+    )}
+    {name === "gamble" && (
+      <g fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="16" y="16" width="32" height="32" rx="8" stroke="var(--pink)" />
+        <circle cx="25" cy="25" r="2.5" fill="var(--lime-text)" stroke="none" />
+        <circle cx="39" cy="39" r="2.5" fill="var(--lime-text)" stroke="none" />
+        <circle cx="32" cy="32" r="2.5" fill="var(--pink)" stroke="none" />
+        <circle cx="39" cy="25" r="2.5" fill="var(--cyan)" stroke="none" />
+        <circle cx="25" cy="39" r="2.5" fill="var(--cyan)" stroke="none" />
       </g>
     )}
     {name === "timing" && (

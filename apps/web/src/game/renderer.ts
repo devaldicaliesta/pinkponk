@@ -17,6 +17,7 @@ import {
   WebGLRenderer,
 } from "three";
 import type { Pov } from "../state/settings";
+import { abilityLook, ballOpacity, turboTrail } from "./ability-look";
 import { BatArm } from "./bat-arm";
 import {
   CANVAS_H,
@@ -77,6 +78,7 @@ interface Avatar {
   prevBatX: number;
   lean: number;
   popUntil: number;
+  batScale: number;
 }
 
 export class GameRenderer {
@@ -92,6 +94,8 @@ export class GameRenderer {
   private shakeUntil = 0;
   private camPos = new Vector3(0, 1.5, 3);
   private camLook = new Vector3(0, 0, -0.4);
+  private readonly camTarget = new Vector3();
+  private readonly lookTarget = new Vector3();
   private aspect = 1;
   private pov: Pov;
   private readonly flip: number;
@@ -119,6 +123,8 @@ export class GameRenderer {
     this.trail.frustumCulled = false;
     this.parts.scene.add(this.trail);
     this.effects = new Effects(this.parts.scene);
+    // Bola hantu memudar; materialnya harus transparan sejak awal.
+    this.parts.ballMat.transparent = true;
     this.applyTheme(opts.colors);
   }
 
@@ -143,6 +149,7 @@ export class GameRenderer {
       prevBatX: 0,
       lean: 0,
       popUntil: 0,
+      batScale: 1,
     };
     // Siapkan semua tekstur pose sekarang agar tidak tersendat saat pose pertama muncul.
     for (const pose of POSE_LIST) this.texture(a, pose);
@@ -260,6 +267,10 @@ export class GameRenderer {
     const overTable = isOverTable(b.x, b.z) && b.y >= 0;
     p.shadow.position.set(b.x * f, overTable ? 0.002 : FLOOR_Y + 0.003, b.z * f);
     (p.shadow.material as MeshBasicMaterial).opacity = overTable ? Math.max(0.1, 0.4 - b.y) : 0.25;
+    const opacity = ballOpacity(v, this.opts.viewer);
+    p.ballMat.opacity = opacity;
+    p.ballGlow.material.opacity = opacity;
+    p.shadow.visible = opacity > 0.3;
 
     this.updateBats(v);
     this.updateAvatars(v, now);
@@ -331,11 +342,23 @@ export class GameRenderer {
         FLOOR_Y + 0.005,
         a.mesh.position.z,
       );
+      this.applyAbility(a, side, v, now);
     }
   }
 
+  private applyAbility(a: Avatar, side: Side, v: MatchView, now: number): void {
+    const look = abilityLook(v.gamble[side], v.gamble[side === 0 ? 1 : 0]);
+    const calm = this.opts.reducedMotion;
+    a.batScale += (look.batScale - a.batScale) * (calm ? 1 : 0.15);
+    a.arm.setBatScale(a.batScale);
+    this.parts.bats[side].scale.setScalar(a.batScale);
+    a.mat.color.set(look.frozen ? "#9fe6ff" : "#ffffff");
+    const p = a.mesh.position;
+    this.effects.aura(side, p.x, FLOOR_Y + 0.008, p.z, look.aura, now, calm);
+  }
+
   private updateTrail(v: MatchView, now: number, fever: boolean): void {
-    const show = now < this.trailUntil || fever;
+    const show = now < this.trailUntil || fever || turboTrail(v);
     this.trail.visible = show && v.phase === "rally";
     if (!this.trail.visible) {
       this.trailCount = 0;
@@ -357,10 +380,9 @@ export class GameRenderer {
     r.visible = ring !== null;
     t.visible = ring !== null;
     if (!ring) return;
-    const pos = new Vector3(ring.x * this.flip, ring.y, ring.z * this.flip);
     const base = 0.07;
-    r.position.copy(pos);
-    t.position.copy(pos);
+    r.position.set(ring.x * this.flip, ring.y, ring.z * this.flip);
+    t.position.copy(r.position);
     r.scale.setScalar(base * (1 + ring.progress * 3));
     t.scale.setScalar(base);
     r.lookAt(this.camera.position);
@@ -371,29 +393,31 @@ export class GameRenderer {
     const portrait = this.aspect < 0.85;
     const f = this.flip;
     const viewerBat = v.bats[this.opts.viewer] * f;
-    let pos: Vector3;
-    let look: Vector3;
+    // Vektor dipakai ulang tiap frame agar tidak membuat sampah untuk garbage collector.
+    const pos = this.camTarget;
+    const look = this.lookTarget;
     let fov: number;
     switch (this.pov) {
       case "first":
         // Cukup jauh di belakang bat agar bat tidak menutupi lawan.
-        pos = new Vector3(viewerBat * 0.7, 0.55, HIT_PLANE_Z + (portrait ? 1.35 : 1.05));
-        look = new Vector3(viewerBat * 0.3, 0, -1.1);
+        pos.set(viewerBat * 0.7, 0.55, HIT_PLANE_Z + (portrait ? 1.35 : 1.05));
+        look.set(viewerBat * 0.3, 0, -1.1);
         fov = portrait ? 75 : 62;
         break;
-      case "iso": {
+      case "iso":
         // Isometrik: kamera jauh dan tinggi dari sudut meja, lensa sempit (hampir ortografis).
         // Potret: sudut lebih sejajar panjang meja agar kedua robot muat di layar sempit.
-        pos = portrait ? new Vector3(2.7, 8.6, 7.8) : new Vector3(5.0, 5.8, 5.2);
-        look = portrait ? new Vector3(0, -0.4, 0.3) : new Vector3(0, -0.3, 0);
+        if (portrait) pos.set(2.7, 8.6, 7.8);
+        else pos.set(5.0, 5.8, 5.2);
+        if (portrait) look.set(0, -0.4, 0.3);
+        else look.set(0, -0.3, 0);
         fov = portrait ? 33 : 24;
         break;
-      }
       case "tv": {
         const follow = this.opts.reducedMotion ? 0 : v.ball.pos.z * f * 0.25;
-        pos = portrait ? new Vector3(0.8, 2.8, 4.1) : new Vector3(2.6, 1.9, 3.3);
-        pos.z += follow;
-        look = new Vector3(0, -0.1, -0.2 + follow);
+        if (portrait) pos.set(0.8, 2.8, 4.1 + follow);
+        else pos.set(2.6, 1.9, 3.3 + follow);
+        look.set(0, -0.1, -0.2 + follow);
         fov = portrait ? 60 : 48;
         break;
       }
@@ -401,10 +425,10 @@ export class GameRenderer {
         // Potret: kamera lebih tinggi agar karakter dekat tidak menutupi meja. Kamera ikut
         // sedikit ke arah bat pemain agar robot sendiri tetap terlihat dan gerakan terasa hidup.
         const follow = this.opts.reducedMotion ? 0 : viewerBat;
-        pos = portrait ? new Vector3(0, 3.0, 2.9) : new Vector3(0, 2.45, 3.35);
-        look = portrait ? new Vector3(0, -0.3, -0.2) : new Vector3(0, -0.55, -0.45);
-        pos.x += follow * 0.3;
-        look.x += follow * 0.12;
+        if (portrait) pos.set(follow * 0.3, 3.0, 2.9);
+        else pos.set(follow * 0.3, 2.45, 3.35);
+        if (portrait) look.set(follow * 0.12, -0.3, -0.2);
+        else look.set(follow * 0.12, -0.55, -0.45);
         fov = portrait ? 56 : 46;
       }
     }

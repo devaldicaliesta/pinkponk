@@ -1,6 +1,7 @@
 import { useState } from "preact/hooks";
 import { useT } from "../i18n";
 import { shareText } from "../share";
+import { levelOf, type MatchReward } from "../state/progress";
 import type { MatchStats } from "./feedback";
 import type { MatchView, NetStatus, Session } from "./session";
 
@@ -9,11 +10,12 @@ interface Props {
   view: MatchView;
   net: NetStatus | null;
   stats: MatchStats;
+  reward: MatchReward | null;
   onRematch(): void;
   onMenu(): void;
 }
 
-export const ResultPanel = ({ session, view, net, stats, onRematch, onMenu }: Props) => {
+export const ResultPanel = ({ session, view, net, stats, reward, onRematch, onMenu }: Props) => {
   const t = useT();
   const [toast, setToast] = useState<string | null>(null);
   const winner = view.winner ?? 0;
@@ -50,6 +52,21 @@ export const ResultPanel = ({ session, view, net, stats, onRematch, onMenu }: Pr
             </>
           )}
         </p>
+        {reward && (
+          <div class="reward" data-testid="reward">
+            <span class="reward__xp">{t("xp.gained", { n: reward.gained })}</span>
+            {reward.levelUp && (
+              <span class="reward__level">
+                {t("xp.levelUp", { n: levelOf(reward.progress.xp).level })}
+              </span>
+            )}
+            {reward.unlocked.map((a) => (
+              <span key={a} class="reward__ach">
+                {t("ach.unlocked", { name: t(`ach.${a}`) })}
+              </span>
+            ))}
+          </div>
+        )}
         {net?.opponentLeft ? (
           <p>{t("game.opponentLeft")}</p>
         ) : (

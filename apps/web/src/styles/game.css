@@ -36,8 +36,17 @@
   justify-self: start;
 }
 
-.hud__top > .score:last-child {
+.hud__top > .score:last-child,
+.hud__right {
   justify-self: end;
+}
+
+.hud__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s1);
+  min-width: 0;
 }
 
 .hud__mid {
@@ -329,5 +338,253 @@
   }
   to {
     transform: scale(1);
+  }
+}
+
+/* ---- Mode Gamble ---- */
+
+.pips {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.pip {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+  background: transparent;
+  transition:
+    background 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+
+.pip--on {
+  background: var(--pink);
+  border-color: var(--pink);
+  box-shadow: var(--glow-sm);
+  transform: scale(1.05);
+}
+
+.pips--small .pip {
+  width: 9px;
+  height: 9px;
+  border-width: 1.5px;
+  border-radius: 3px;
+}
+
+.gamble-bar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) var(--s2) var(--s2) var(--s3);
+  border-radius: 16px;
+  max-width: 100%;
+}
+
+.gamble-bar__meter {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s1);
+  min-width: 0;
+}
+
+.gamble-bar__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.gamble-bar__armed {
+  font-size: 12px;
+  color: var(--lime-text);
+}
+
+.gamble-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  min-width: 96px;
+  min-height: 52px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+
+.gamble-btn small {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+.gamble-btn--ready {
+  background: var(--pink);
+  color: var(--on-pink);
+  border-color: var(--pink);
+  box-shadow: var(--glow-md);
+  animation: ready-pulse 900ms ease-in-out infinite alternate;
+}
+
+@media (pointer: coarse) {
+  .gamble-btn small {
+    display: none;
+  }
+}
+
+.ability-chip {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px var(--s2);
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  white-space: nowrap;
+}
+
+.ability-chip--good {
+  color: var(--lime-text);
+}
+
+.ability-chip--rare {
+  color: var(--gold);
+}
+
+.ability-chip--bad {
+  color: var(--danger);
+}
+
+.opp-gamble {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: 2px var(--s2);
+  border-radius: 999px;
+  background: var(--surface-glass);
+}
+
+.roulette {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--s2) var(--s5);
+  border-radius: 18px;
+  background: var(--surface-glass);
+  border: 2px solid var(--border);
+  text-align: center;
+  max-width: min(90vw, 26em);
+}
+
+.roulette__who {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.roulette__name {
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.roulette__desc {
+  font-size: 13px;
+}
+
+.roulette--spin .roulette__name {
+  color: var(--text-muted);
+}
+
+.roulette--good {
+  border-color: var(--lime-text);
+  animation: pop 220ms var(--ease);
+}
+
+.roulette--good .roulette__name {
+  color: var(--lime-text);
+  text-shadow: 0 0 14px var(--lime);
+}
+
+.roulette--rare {
+  border-color: var(--gold);
+  animation: pop 220ms var(--ease);
+}
+
+.roulette--rare .roulette__name {
+  color: var(--gold);
+  text-shadow: 0 0 18px var(--gold);
+}
+
+.roulette--bad {
+  border-color: var(--danger);
+  animation: shake 320ms var(--ease);
+}
+
+.roulette--bad .roulette__name {
+  color: var(--danger);
+}
+
+.hud__toast--shield {
+  color: var(--cyan);
+}
+
+.reward {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.reward__xp {
+  font-family: var(--font-display);
+  font-size: 26px;
+  color: var(--lime-text);
+}
+
+.reward__level,
+.reward__ach {
+  font-weight: 700;
+  color: var(--gold);
+  animation: pop 260ms var(--ease) both;
+}
+
+/* Denyut lewat cahaya, bukan skala: tombol tidak bergeser sehingga mudah ditekan. */
+@keyframes ready-pulse {
+  from {
+    box-shadow: 0 0 4px var(--pink-glow);
+  }
+  to {
+    box-shadow:
+      0 0 16px var(--pink-glow),
+      0 0 32px var(--pink-glow);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+@media (max-width: 420px) {
+  .roulette__name {
+    font-size: 26px;
+  }
+
+  .gamble-btn {
+    min-width: 84px;
+    font-size: 18px;
   }
 }

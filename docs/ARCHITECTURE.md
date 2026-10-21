@@ -12,17 +12,23 @@ Browser (HP/desktop)
           ▼
 Cloudflare Worker (satu Worker)
   ├─ Static Assets (hasil build frontend)
-  ├─ GET /ws/room/:code  → upgrade ke Durable Object
-  ├─ POST /api/room      → buat kode room
-  └─ POST /api/event     → hitungan anonim ke Workers Analytics Engine (metrik)
+  ├─ GET /ws/room/:code      → upgrade ke Durable Object Room
+  ├─ GET /ws/queue           → antrean cari lawan acak (DO Matchmaker)
+  ├─ POST /api/room          → buat kode room
+  ├─ GET /api/leaderboard    → top 50 (cache edge 30 detik)
+  ├─ GET /api/leaderboard/me → peringkat sendiri (?id=hash)
+  └─ POST /api/event         → hitungan anonim ke Workers Analytics Engine (metrik)
           ▼
-Durable Object "Room" (satu instance per room)
-  └─ menjalankan paket `sim` yang sama dengan client (server-authoritative)
+Durable Object "Room" (satu instance per room, wilayah apac)
+  ├─ menjalankan paket `sim` yang sama dengan client (server-authoritative)
+  └─ akhir pertandingan → RPC report() ke DO "Leaderboard"
+Durable Object "Matchmaker" (satu instance global, antrean di memori, hibernasi)
+Durable Object "Leaderboard" (satu instance global, SQLite: players + pairs)
 ```
 
-Tidak ada database. State room hanya hidup di memori Durable Object dan hilang
-saat room kosong. Data pemain (nickname, pengaturan, statistik) ada di
-`localStorage`.
+Tidak ada database aplikasi. State room dan antrean hanya hidup di memori Durable
+Object. Satu-satunya data permanen adalah papan peringkat (lihat `SECURITY.md` §1).
+Data pemain lain (nickname, pengaturan, XP, pencapaian) ada di `localStorage`.
 
 ## 2. Keputusan utama
 
@@ -100,8 +106,12 @@ apps/web            frontend (Vite + Preact + Three.js)
   src/state         pengaturan & statistik di localStorage
   build/            plugin Vite: service worker, _headers, robots.txt per situs
   public/           manifest PWA, ikon, theme.js
-worker/             Cloudflare Worker + Durable Object Room
-packages/sim        fisika, aturan skor, AI, penilaian timing (TS murni)
+worker/             Cloudflare Worker + Durable Object Room, Matchmaker, Leaderboard
+  src/*-core.ts     logika murni (RoomCore, MatchmakerCore, LeaderboardCore), dites tanpa runtime
+  stress/           uji beban server (pnpm test:stress)
+scripts/            budget ukuran, uji beban jaringan (stress-online.mjs)
+packages/sim        fisika, aturan skor, AI, penilaian timing, Gamble (TS murni)
+  stress/           uji beban simulasi (ribuan pertandingan acak)
 packages/protocol   skema pesan + encoder/decoder biner (dipakai client & worker)
 e2e/                test Playwright
 docs/               PRD, desain, arsitektur, QA, security, deploy
@@ -122,8 +132,8 @@ Yang sengaja **tidak** dipakai: `zod` (validasi pesan ditulis manual di
 ±40 baris dibuat plugin sendiri), file audio dan sprite (efek suara disintesis Web
 Audio, robot digambar Canvas 2D).
 
-Ukuran build saat ini: JS awal 21 kB gzip, chunk game 136 kB, font 65 kB, Worker
-15 kB (cek: `pnpm build && pnpm size`).
+Ukuran build saat ini: JS awal ±23 kB gzip, chunk game ±141 kB, font 65 kB, Worker
+±21 kB (cek: `pnpm build && pnpm size`).
 
 Setiap dependency baru di luar daftar ini wajib dijelaskan di PR.
 

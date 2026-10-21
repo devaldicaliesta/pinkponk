@@ -1,3 +1,4 @@
+import type { Side } from "@pinkponk/sim";
 import {
   AdditiveBlending,
   CanvasTexture,
@@ -10,7 +11,15 @@ import {
   SpriteMaterial,
 } from "three";
 
+import type { Aura } from "./ability-look";
+
 const FLASH_MS = 260;
+const AURA_COLORS: Record<Exclude<Aura, null>, string> = {
+  good: "#c6ff3d",
+  rare: "#ffd23d",
+  bad: "#ff4d4d",
+  shield: "#3de8ff",
+};
 const RIPPLE_MS = 340;
 
 const flashTexture = (): CanvasTexture => {
@@ -50,6 +59,8 @@ export class Effects {
   private flashAt = Number.NEGATIVE_INFINITY;
   private flashSize = 0.4;
   private rippleAt = Number.NEGATIVE_INFINITY;
+  private readonly auraGeo = new RingGeometry(0.34, 0.44, 40);
+  private readonly auras: [Mesh, Mesh];
 
   constructor(scene: Scene) {
     this.flash.visible = false;
@@ -57,6 +68,37 @@ export class Effects {
     this.ripple.rotation.x = -Math.PI / 2;
     this.ripple.visible = false;
     scene.add(this.flash, this.ripple);
+    const aura = () => {
+      const m = new Mesh(
+        this.auraGeo,
+        new MeshBasicMaterial({
+          transparent: true,
+          blending: AdditiveBlending,
+          depthWrite: false,
+          side: DoubleSide,
+        }),
+      );
+      m.rotation.x = -Math.PI / 2;
+      m.scale.set(1, 0.6, 1);
+      m.visible = false;
+      scene.add(m);
+      return m;
+    };
+    this.auras = [aura(), aura()];
+  }
+
+  /** Cincin berdenyut di kaki robot selama kemampuan Gamble aktif. */
+  aura(side: Side, x: number, y: number, z: number, kind: Aura, now: number, calm: boolean): void {
+    const m = this.auras[side];
+    m.visible = kind !== null;
+    if (!kind) return;
+    const mat = m.material as MeshBasicMaterial;
+    mat.color.set(AURA_COLORS[kind]);
+    const pulse = calm ? 0.5 : 0.5 + 0.5 * Math.sin(now / 180 + side);
+    mat.opacity = 0.45 + 0.4 * pulse;
+    m.position.set(x, y, z);
+    const s = 1 + (calm ? 0 : pulse * 0.12);
+    m.scale.set(s, 0.6 * s, 1);
   }
 
   hit(x: number, y: number, z: number, strong: boolean, color: string, now: number): void {
@@ -93,5 +135,7 @@ export class Effects {
     this.flashMat.dispose();
     this.rippleMat.dispose();
     this.ripple.geometry.dispose();
+    this.auraGeo.dispose();
+    for (const a of this.auras) (a.material as MeshBasicMaterial).dispose();
   }
 }

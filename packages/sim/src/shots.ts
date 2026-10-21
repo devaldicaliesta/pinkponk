@@ -44,7 +44,20 @@ const resolvePlan = (from: Vec3, hitter: Side, plan: Plan, rng: Rng): SolvedShot
 };
 
 /** Pukulan mode ayunan: kekuatan dan arah dari gerakan pointer/keyboard. */
-export const swingShot = (from: Vec3, hitter: Side, s: SwingParams, rng: Rng): Shot => {
+export interface ShotBoost {
+  speed: number;
+  sigma: number;
+}
+
+const NO_BOOST: ShotBoost = { speed: 1, sigma: 1 };
+
+export const swingShot = (
+  from: Vec3,
+  hitter: Side,
+  s: SwingParams,
+  rng: Rng,
+  boost: ShotBoost = NO_BOOST,
+): Shot => {
   const power = clamp(s.power, 0, 1);
   const aim = clamp(s.aim, -1, 1);
   const lift = clamp(s.lift, -1, 1);
@@ -54,13 +67,13 @@ export const swingShot = (from: Vec3, hitter: Side, s: SwingParams, rng: Rng): S
   const plan: Plan = {
     kind,
     // Kecepatan dibuat lebih lambat dari aslinya agar enak dimainkan di layar HP.
-    speed: smash ? 12 + power * 2 : 4 + power * 6.5,
+    speed: (smash ? 12 + power * 2 : 4 + power * 6.5) * boost.speed,
     depth: 0.6 + power * 0.6,
     top: smash ? 0.6 : lift,
     side: aim * 0.4,
     aimX: aim * 0.6,
     // Pukulan keras, bersudut tajam, atau kena tepi bat lebih berisiko keluar.
-    sigma: 0.05 + power * power * 0.2 + Math.abs(aim) * 0.06 + edge * edge * 0.25,
+    sigma: (0.05 + power * power * 0.2 + Math.abs(aim) * 0.06 + edge * edge * 0.25) * boost.sigma,
   };
   return { kind, launch: resolvePlan(from, hitter, plan, rng) };
 };

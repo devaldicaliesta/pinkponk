@@ -7,6 +7,8 @@ export interface HumanInput {
   read(viewTick: number, wallToSimMs: (wall: number) => number): PlayerInput;
   /** Tap buatan (hook E2E). */
   injectTap?(wallMs: number): void;
+  /** Tombol kemampuan Gamble dari tombol di layar. */
+  pressAbility(): void;
   dispose(): void;
 }
 
@@ -16,6 +18,7 @@ interface KeyMap {
   up: string[];
   down: string[];
   action: string[];
+  ability: string[];
 }
 
 export const KEYS_SOLO: KeyMap = {
@@ -24,6 +27,7 @@ export const KEYS_SOLO: KeyMap = {
   up: ["ArrowUp", "KeyW"],
   down: ["ArrowDown", "KeyS"],
   action: ["Space"],
+  ability: ["KeyE", "KeyQ"],
 };
 export const KEYS_P1: KeyMap = {
   left: ["KeyA"],
@@ -31,6 +35,7 @@ export const KEYS_P1: KeyMap = {
   up: ["KeyW"],
   down: ["KeyS"],
   action: ["Space"],
+  ability: ["KeyE"],
 };
 export const KEYS_P2: KeyMap = {
   left: ["ArrowLeft"],
@@ -38,6 +43,7 @@ export const KEYS_P2: KeyMap = {
   up: ["ArrowUp"],
   down: ["ArrowDown"],
   action: ["Enter", "NumpadEnter"],
+  ability: ["ShiftRight"],
 };
 
 const KEY_MOVE_SPEED = 3.2;
@@ -57,6 +63,8 @@ export class CombinedInput implements HumanInput {
   private keysDown = new Set<string>();
   private pendingTaps: number[] = [];
   private servePressed = false;
+  private abilityPressed = false;
+  private lastPadAbility = false;
   private tapAimValue = 0;
   private lastKeyTime = 0;
   private lastPadButton = false;
@@ -109,11 +117,17 @@ export class CombinedInput implements HumanInput {
       power: swing.power,
       serve: this.servePressed,
       tapMs,
+      ability: this.abilityPressed,
     };
     if (tapMs !== null) input.aim = this.tapAimValue;
     this.servePressed = false;
+    this.abilityPressed = false;
     if (this.samples.length > 32) this.samples = this.samples.slice(-16);
     return input;
+  }
+
+  pressAbility(): void {
+    this.abilityPressed = true;
   }
 
   dispose(): void {
@@ -121,7 +135,7 @@ export class CombinedInput implements HumanInput {
   }
 
   private listen(target: EventTarget, type: string, fn: (e: Event) => void): void {
-    target.addEventListener(type, fn, { passive: type !== "keydown" });
+    target.addEventListener(type, fn, { passive: !type.startsWith("key") });
     this.cleanup.push(() => target.removeEventListener(type, fn));
   }
 
@@ -149,9 +163,11 @@ export class CombinedInput implements HumanInput {
 
   private onKey(e: KeyboardEvent, down: boolean): void {
     const k = this.opts.keys;
-    const all = [...k.left, ...k.right, ...k.up, ...k.down, ...k.action];
+    const all = [...k.left, ...k.right, ...k.up, ...k.down, ...k.action, ...k.ability];
     if (!all.includes(e.code)) return;
     e.preventDefault();
+    if (down && !this.keysDown.has(e.code) && k.ability.includes(e.code))
+      this.abilityPressed = true;
     if (down && !this.keysDown.has(e.code) && k.action.includes(e.code)) {
       this.pendingTaps.push(e.timeStamp || performance.now());
       this.tapAimValue = this.keyDir() * 0.7;
@@ -209,5 +225,8 @@ export class CombinedInput implements HumanInput {
       this.servePressed = true;
     }
     this.lastPadButton = button;
+    const ability = pad.buttons[3]?.pressed ?? false;
+    if (ability && !this.lastPadAbility) this.abilityPressed = true;
+    this.lastPadAbility = ability;
   }
 }

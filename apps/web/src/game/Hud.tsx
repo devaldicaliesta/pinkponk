@@ -1,6 +1,8 @@
 import { EMOJIS } from "@pinkponk/protocol";
 import type { FaultReason, Side, TimingGrade } from "@pinkponk/sim";
 import { useT } from "../i18n";
+import type { RouletteInfo } from "./feedback";
+import { GambleBar, OpponentGamble, Roulette } from "./GambleHud";
 import type { MatchView, NetStatus, SessionKind } from "./session";
 
 export interface HudState {
@@ -13,6 +15,8 @@ export interface HudState {
   net: NetStatus | null;
   serveHint: "tap" | "key" | "p2" | "wait" | null;
   emoji: { key: number; player: Side; e: number } | null;
+  roulette: RouletteInfo | null;
+  shield: { key: number; player: Side } | null;
 }
 
 interface Props {
@@ -25,6 +29,9 @@ interface Props {
   onPause(): void;
   onCamera(): void;
   onEmoji?: (e: number) => void;
+  gamble: boolean;
+  reducedMotion: boolean;
+  onAbility(): void;
 }
 
 const ScoreCard = ({
@@ -79,6 +86,9 @@ export const Hud = ({
   onPause,
   onCamera,
   onEmoji,
+  gamble,
+  reducedMotion,
+  onAbility,
 }: Props) => {
   const t = useT();
   const v = state.view;
@@ -131,14 +141,17 @@ export const Hud = ({
             )}
           </div>
         </div>
-        <ScoreCard
-          name={names[right]}
-          points={v.points[right]}
-          games={v.games[right]}
-          need={need}
-          serving={showServe && v.server === right}
-          you={false}
-        />
+        <div class="hud__right">
+          <ScoreCard
+            name={names[right]}
+            points={v.points[right]}
+            games={v.games[right]}
+            need={need}
+            serving={showServe && v.server === right}
+            you={false}
+          />
+          {gamble && <OpponentGamble g={v.gamble[right]} />}
+        </div>
       </div>
 
       <div class="hud__center">
@@ -152,6 +165,19 @@ export const Hud = ({
         {state.toast && (
           <div key={state.toast.key} class="hud__toast" data-testid="point-reason">
             {t(`game.reason.${state.toast.reason}`)}
+          </div>
+        )}
+        {state.roulette && (
+          <Roulette
+            key={state.roulette.key}
+            info={state.roulette}
+            you={you}
+            reduced={reducedMotion}
+          />
+        )}
+        {state.shield && (
+          <div key={state.shield.key} class="hud__toast hud__toast--shield">
+            {t("gamble.shield")}
           </div>
         )}
         {state.emoji && (
@@ -183,6 +209,7 @@ export const Hud = ({
                   : t("game.waitServe")}
           </div>
         )}
+        {gamble && you !== null && <GambleBar g={v.gamble[you]} onPress={onAbility} />}
         {kind === "online" && onEmoji && (
           <div class="emoji-bar">
             {EMOJIS.map((e, i) => (

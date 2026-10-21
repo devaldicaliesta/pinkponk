@@ -103,6 +103,11 @@ export class BatArm {
     return new Mesh(geo, mat);
   }
 
+  /** Bat raksasa / mengecil dari kemampuan Gamble. */
+  setBatScale(s: number): void {
+    this.bat.scale.setScalar(s);
+  }
+
   kick(swing: Swing, calm: boolean): void {
     if (!calm) this.swing.v += SWING_KICK[swing];
   }
