@@ -1,0 +1,26 @@
+{
+  "name": "pinkponk",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @pinkponk/web --filter @pinkponk/worker dev",
+    "build": "pnpm --filter @pinkponk/web build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "size": "node scripts/check-size.mjs",
+    "test:e2e": "playwright test",
+    "deploy:dev": "pnpm --filter @pinkponk/worker run deploy:dev",
+    "deploy:production": "pnpm --filter @pinkponk/worker run deploy:production"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.7",
+    "@playwright/test": "1.56.1",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}
