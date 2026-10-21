@@ -25,8 +25,8 @@ jobs:
       - name: Cek secret Cloudflare
         id: secrets
         run: |
-          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] || [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
-            echo "::notice::Secret CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID belum diisi; deploy dilewati. Lihat docs/DEPLOY.md."
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "::notice::Secret CLOUDFLARE_API_TOKEN belum diisi; deploy dilewati. Lihat docs/DEPLOY.md."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
@@ -56,4 +56,3 @@ jobs:
         run: pnpm --filter @pinkponk/worker exec wrangler deploy --env ${{ github.ref_name == 'production' && 'production' || 'dev' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

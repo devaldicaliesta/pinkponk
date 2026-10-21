@@ -13,8 +13,9 @@
    - Account → Account Settings: Read
    - Zone (hanya `pinkponk.my.id`) → Zone: Read, DNS: Edit, Workers Routes: Edit
    (Cloudflare Pages: Edit tidak dibutuhkan karena memakai Worker + Static Assets.)
-8. GitHub repo → Settings → Secrets and variables → Actions:
-   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
+8. GitHub repo → Settings → Secrets and variables → Actions: `CLOUDFLARE_API_TOKEN`.
+   Account ID (`7629660f33279441e8cb1e786e2a56f7`) sudah tertulis di
+   `worker/wrangler.jsonc` karena bukan rahasia.
 9. Buat branch `production` dari `development` (GitHub → Branches → New branch).
 10. GitHub → Settings → Branches: proteksi `production` (PR wajib, status check wajib,
    tanpa force-push) dan `development` (status check wajib).
@@ -51,7 +52,7 @@ PP_SITE=dev pnpm build && pnpm deploy:dev
 PP_SITE=production pnpm build && pnpm deploy:production
 ```
 
-Butuh `CLOUDFLARE_API_TOKEN` dan `CLOUDFLARE_ACCOUNT_ID` di environment.
+Butuh `CLOUDFLARE_API_TOKEN` di environment.
 
 ## 3. Rollback
 

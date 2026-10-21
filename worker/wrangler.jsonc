@@ -1,6 +1,8 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "pinkponk",
+  // Account ID bukan rahasia; yang rahasia hanya CLOUDFLARE_API_TOKEN (GitHub Secret).
+  "account_id": "7629660f33279441e8cb1e786e2a56f7",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "workers_dev": false,
