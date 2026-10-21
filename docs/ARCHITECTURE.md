@@ -59,22 +59,34 @@ saat room kosong. Data pemain (nickname, pengaturan, statistik) ada di
 
 ### 2.4 UI menu tanpa framework berat
 
-- Preact (≈ 4 kB) + signals untuk menu, pengaturan, HUD. React ditolak karena
-  ukurannya untuk kebutuhan menu yang sederhana.
+- Preact (≈ 4 kB) dengan hooks untuk menu, pengaturan, HUD. React ditolak karena
+  ukurannya untuk kebutuhan menu yang sederhana; signals tidak diperlukan.
+- HUD di-render ulang hanya saat nilainya berubah (kunci ringkas per frame), bukan
+  tiap frame.
+- Tema dipasang oleh `/theme.js` (file kecil sinkron di `<head>`) sehingga CSP tidak
+  butuh `unsafe-inline` maupun hash.
 - Styling: CSS biasa dengan token (`DESIGN.md`), tanpa Tailwind runtime.
 
 ### 2.5 Netcode
 
-- Client mengirim **input** (posisi bat, ayunan, tap) dengan nomor tick, dikumpulkan
-  dan dikirim 30 kali/detik (satu pesan berisi input beberapa tick) untuk menekan
-  jumlah pesan masuk yang ditagih.
-- Server mensimulasikan 120 Hz, mengirim snapshot 30 Hz (delta + kuantisasi,
-  format biner kecil).
-- Client: prediksi bat sendiri, interpolasi bola/lawan dengan buffer ~100 ms,
-  rekonsiliasi saat snapshot berbeda.
-- Mode Timing Smash: server mencatat waktu ideal kontak; tap client diberi
-  cap waktu yang dikonversi lewat offset jam (ping/pong gaya NTP), lalu dibatasi
-  ±RTT/2. Server yang menentukan PERFECT/GREAT/....
+- Client mengirim **input terbaru** (posisi bat, arah, spin, tenaga, servis, waktu tap)
+  30 kali/detik dalam pesan biner 21 byte, bersama `viewTick` = tick server yang
+  sedang ia lihat.
+- Server mensimulasikan 120 Hz dan mengirim snapshot 30 Hz (keadaan penuh, ±64 byte +
+  event pertandingan).
+- Client: jam disinkronkan gaya NTP (sampel RTT terkecil), tampilan 100 ms di belakang
+  server dengan interpolasi linier, bat sendiri diprediksi lokal dengan batas
+  kecepatan yang sama dengan server.
+- **Kompensasi lag:** saat bola tiba di titik pukul seorang pemain, server menunggu
+  (maks 300 ms) input pemain itu yang `viewTick`-nya sudah melewati tick tersebut,
+  menilai pukulan dengan posisi bat yang dilihat pemain (dibatasi kecepatan bat
+  maksimum), lalu memundurkan bola ke tick pukulan dan memajukannya kembali ke saat
+  ini. Mode lokal memakai jalur kode yang sama tanpa jeda.
+- Mode Timing Smash: waktu tap dalam ms simulasi menurut tampilan pemain; server
+  menolak tap di masa depan atau lebih tua dari 600 ms dan menentukan
+  PERFECT/GREAT/... sendiri.
+- Koneksi mati diam-diam ditangani dua sisi: server memutus pemain yang diam > 5 detik,
+  client menyambung ulang bila tidak menerima apa pun > 4,5 detik.
 - WebSocket Hibernation API supaya biaya Durable Object tetap rendah saat room diam.
 
 ## 3. Struktur folder
@@ -84,8 +96,10 @@ apps/web            frontend (Vite + Preact + Three.js)
   src/ui            menu, pengaturan, HUD
   src/game          renderer, kamera POV, input, audio
   src/net           klien WebSocket, prediksi, interpolasi
-  src/i18n          id.json, en.json
-  public/           manifest PWA, ikon, font, sprite
+  src/i18n          id.ts, en.ts (kunci dicek sama oleh test)
+  src/state         pengaturan & statistik di localStorage
+  build/            plugin Vite: service worker, _headers, robots.txt per situs
+  public/           manifest PWA, ikon, theme.js
 worker/             Cloudflare Worker + Durable Object Room
 packages/sim        fisika, aturan skor, AI, penilaian timing (TS murni)
 packages/protocol   skema pesan + encoder/decoder biner (dipakai client & worker)
@@ -98,11 +112,18 @@ docs/               PRD, desain, arsitektur, QA, security, deploy
 | Paket | Alasan | Perkiraan ukuran |
 |-------|--------|------------------|
 | `three` | Render 3D + kamera POV | ~120–140 kB gzip (modular, lazy) |
-| `preact`, `@preact/signals` | UI menu ringan | ~6 kB |
-| `zod` (hanya di worker) | Validasi pesan masuk | tidak masuk bundle client |
-| `vite`, `typescript`, `vitest`, `@playwright/test`, `@biomejs/biome` | Build, test, lint | dev saja |
-| `wrangler` | Deploy Cloudflare | dev saja |
-| `vite-plugin-pwa` | Service worker PWA | dev, output ~5 kB |
+| `preact` | UI menu ringan | ~4 kB |
+| `@fontsource/anton`, `@fontsource/inter` | Font OFL self-host (subset Latin) | ±65 kB woff2 |
+| `vite`, `@preact/preset-vite`, `typescript`, `vitest`, `@playwright/test`, `@biomejs/biome` | Build, test, lint | dev saja |
+| `wrangler`, `@cloudflare/workers-types` | Dev lokal & deploy Cloudflare | dev saja |
+
+Yang sengaja **tidak** dipakai: `zod` (validasi pesan ditulis manual di
+`packages/protocol`, lebih kecil dan dites), `vite-plugin-pwa`/Workbox (service worker
+±40 baris dibuat plugin sendiri), file audio dan sprite (efek suara disintesis Web
+Audio, robot digambar Canvas 2D).
+
+Ukuran build saat ini: JS awal 21 kB gzip, chunk game 136 kB, font 65 kB, Worker
+15 kB (cek: `pnpm build && pnpm size`).
 
 Setiap dependency baru di luar daftar ini wajib dijelaskan di PR.
 

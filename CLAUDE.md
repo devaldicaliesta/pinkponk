@@ -23,4 +23,6 @@ tanpa database, di Cloudflare (`pinkponk.my.id`).
 - Tidak boleh ada logo/merek pihak lain di aset mana pun.
 - Teks UI lewat i18n (ID/EN), tidak di-hardcode.
 - Rahasia (API token Cloudflare) hanya di GitHub Secrets, tidak pernah di repo.
-- Sebelum PR: typecheck, lint (Biome), dan test hijau.
+- Sebelum PR: `pnpm check` hijau; bila menyentuh frontend juga `pnpm build && pnpm size`;
+  bila menyentuh alur utama juga `pnpm test:e2e`.
+- Hook test (`window.__pp`) hanya boleh ada di build E2E (`__E2E__`).

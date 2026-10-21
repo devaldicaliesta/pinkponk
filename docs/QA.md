@@ -5,10 +5,11 @@
 | Lapisan | Alat | Cakupan |
 |---------|------|---------|
 | Unit | Vitest | `packages/sim` (fisika, skor, AI, timing), `packages/protocol` (encode/decode, validasi) |
-| Integrasi worker | Vitest + `@cloudflare/vitest-pool-workers` | Buat room, join, pesan tidak valid ditolak, rate limit, room dihapus saat kosong |
+| Room online | Vitest (koneksi dan jam palsu terhadap `RoomCore`) | Buat room, join, pesan rusak/terlalu besar ditolak, rate limit, jeda/sambung ulang/WO, jeda atas permintaan, koneksi diam, rematch |
 | E2E | Playwright | Alur utama di browser (§3) |
 | Visual | Playwright screenshot | Layar judul, menu, HUD, hasil — tema gelap dan terang, HP dan desktop |
-| Performa | Lighthouse CI + skrip FPS | Budget di §4 |
+| Ukuran | `scripts/check-size.mjs` (CI) | Budget di §4 |
+| Performa | Lighthouse + FPS (manual sebelum rilis; otomatisasi = tindak lanjut) | §4 |
 | Jaringan | Playwright + throttling / proxy latensi | RTT 150 ms, loss 2%, putus-sambung |
 
 CI (`pnpm check`) wajib hijau sebelum merge: typecheck, lint (Biome), unit,
@@ -34,16 +35,21 @@ jalan di setiap PR ke `production` dan setiap malam di `development`.
 |---|----------|----------------|
 | E1 | Pertama kali masuk → isi nickname → tersimpan setelah reload | Cek `localStorage` |
 | E2 | Vs AI Mudah sampai game selesai | Hook test (`?seed=`, percepat waktu) hanya ada di build test, tidak ikut build produksi |
-| E3 | Ganti 3 POV saat bermain | Screenshot per POV |
+| E3 | Ganti 4 POV saat bermain | POV tersimpan di pengaturan |
 | E4 | Lokal 2 pemain: input keyboard dua sisi | Viewport desktop saja |
 | E5 | Online 1v1: dua browser context, buat room → join lewat link → main 1 poin | Worker lokal (`wrangler dev`) |
 | E6 | Online: putuskan satu context → sambung ulang < 30 detik → lanjut | `context.setOffline` |
 | E7 | Timing Smash: tap tepat pada waktu ideal → PERFECT; telat 200 ms → LATE; tidak tap → MISS | Waktu disimulasikan lewat jam test, bukan `sleep` |
 | E8 | Toggle tema gelap/terang/otomatis tersimpan dan tanpa kedipan saat reload | |
-| E9 | PWA: setelah kunjungan pertama, Vs AI bisa dimulai saat offline | |
+| E9 | PWA: setelah kunjungan pertama, Vs AI bisa dimulai saat offline | Mode online nonaktif saat offline |
+| E11 | Jeda online: kedua pemain berhenti bersamaan lalu lanjut | |
+| E12 | Jeda di mode lokal menghentikan simulasi | Juga di viewport HP |
 | E10 | Nickname berisi `<script>` ditolak/di-escape di UI dan di layar lawan | |
 
-Viewport: 390×844 (HP), 1440×900 (desktop). Browser: Chromium, WebKit, Firefox.
+Status: 19 test E2E lulus (proyek `desktop` semua test, `mobile` test bertanda
+`@mobile`). Browser di CI: Chromium dengan WebGL perangkat lunak (SwiftShader);
+WebKit/Firefox ditambahkan setelah deploy pertama. Uji visual (screenshot) tema
+gelap/terang dilakukan manual; otomatisasi = tindak lanjut.
 
 ## 4. Budget performa (gagal CI jika dilanggar)
 
@@ -51,8 +57,10 @@ Viewport: 390×844 (HP), 1440×900 (desktop). Browser: Chromium, WebKit, Firefox
 - Font ≤ 80 kB, sprite karakter ≤ 120 kB (satu atlas, warna lewat recolor).
 - Total unduhan sampai servis pertama ≤ 550 kB (JS + font + sprite). Efek suara
   (≤ 80 kB) dimuat setelah interaksi pertama dan tidak dihitung di sini.
-- Lighthouse mobile: Performance ≥ 90, Accessibility ≥ 95, Best Practices ≥ 95.
-- FPS rata-rata ≥ 55 di emulasi CPU 4× lebih lambat selama 30 detik reli bot vs bot.
+- Saat ini: JS awal 21 kB, chunk game 136 kB, font 65 kB, total 226 kB.
+- Lighthouse mobile (manual): Performance ≥ 90, Accessibility ≥ 95, Best Practices ≥ 95.
+- FPS (manual): rata-rata ≥ 55 di HP kelas menengah; game otomatis turun ke grafis
+  rendah bila < 50 FPS selama 3 detik.
 
 ## 5. Uji manual sebelum rilis produksi
 

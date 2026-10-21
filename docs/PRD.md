@@ -1,6 +1,6 @@
 # PRD — PinkPonk
 
-Status: draf v0.1 untuk disetujui · Domain: `pinkponk.my.id`
+Status: v0.2 — MVP terimplementasi di branch `development` · Domain: `pinkponk.my.id`
 
 ## 1. Ringkasan
 
@@ -54,19 +54,25 @@ berjalan di Cloudflare tanpa database.
 
 ### 6.2 Memukul (ayunan)
 
-- Posisi bat mengikuti pointer/jari di bidang pemain.
+- Posisi bat (kiri-kanan) mengikuti pointer/jari; tinggi bat menyesuaikan bola
+  otomatis (assist), jadi pemain HP cukup menggeser satu arah.
 - Kecepatan dan arah gerakan sesaat sebelum kontak menentukan:
   - kecepatan bola (dibatasi maksimum),
   - spin: gerakan ke atas → topspin, ke bawah → backspin, menyamping → sidespin.
 - Sudut bat otomatis (assist) supaya pemain HP tidak perlu mengatur kemiringan.
-- Keyboard (1 pemain): panah/WASD untuk posisi, Spasi untuk ayunan, Shift + arah untuk spin.
-- Keyboard (Lokal 2 pemain): P1 WASD + Spasi + Shift kiri; P2 panah + Enter + Shift kanan
-  (dibedakan lewat `KeyboardEvent.code`).
-- Gamepad (opsional): stik kiri posisi, tombol untuk ayunan + spin.
+- Pukulan keras, bersudut tajam, atau kena tepi bat punya sebaran lebih lebar
+  (lebih berisiko keluar meja): risiko sebanding hadiah.
+- Keyboard (1 pemain): ←/→ atau A/D gerak, ↑/↓ atau W/S topspin/backspin, Spasi
+  pukulan keras + servis.
+- Keyboard (Lokal 2 pemain): P1 A/D, W/S, Spasi; P2 ←/→, ↑/↓, Enter.
+- Gamepad (opsional): stik kiri gerak, tombol A pukul/servis.
+- `V` ganti kamera, `Esc`/`P` jeda.
 
 ### 6.3 Servis
 
-- Lempar: tahan → bola naik; lepas/ayun → pukul.
+- Tekan (klik/tap/Spasi) → bola dilempar; bola dipukul otomatis saat turun, dengan
+  arah dan spin dari gerakan pointer/tombol saat itu. Lintasan servis selalu sah.
+- Bila server tidak servis dalam 6 detik, servis dilakukan otomatis (anti-macet).
 - Servis harus memantul sekali di sisi sendiri, lalu sekali di sisi lawan.
 - Bot dan pemain sama-sama mengikuti aturan ini.
 
@@ -110,7 +116,12 @@ Nilai di atas adalah angka awal untuk di-tuning lewat playtest.
 - Client memakai prediksi untuk bat sendiri dan interpolasi untuk bola/lawan.
 - Indikator ping (hijau < 80 ms, kuning < 150 ms, merah ≥ 150 ms).
 - Putus koneksi: pertandingan dijeda hingga 30 detik dan client mencoba menyambung
-  ulang otomatis; lewat dari itu lawan menang walkover.
+  ulang otomatis (token kursi di sessionStorage); lewat dari itu lawan menang walkover.
+  Server menganggap pemain yang diam > 5 detik terputus, dan client yang tidak
+  menerima apa pun > 4,5 detik menyambung ulang sendiri (mengatasi koneksi setengah
+  mati saat HP berpindah jaringan).
+- Jeda atas permintaan: tiap pemain 2× per pertandingan, maks 60 detik; menghentikan
+  simulasi di server untuk kedua pemain, siapa pun boleh melanjutkan.
 - Room hilang otomatis saat kosong; tidak ada data yang disimpan permanen.
 - Penonton (v1.1): maksimal 8 per room, hanya menerima state.
 
@@ -170,24 +181,28 @@ Selisih = waktu tap − waktu ideal (bola tepat di titik pukul).
 1. **Klasik** — kamera tinggi di belakang pemain, meja terlihat utuh (default HP).
 2. **Orang pertama** — kamera di belakang bat; yang terlihat hanya tangan + bat
    bergaya karakter.
-3. **Siaran TV** — kamera dari samping meja, mengikuti reli dengan gerakan halus;
-   kedua karakter terlihat penuh (default desktop).
+3. **Siaran TV** — kamera tinggi dari belakang-samping pemain, mengikuti reli dengan
+   gerakan halus; kedua karakter terlihat penuh (default desktop).
+4. **Isometrik** — kamera jauh dan tinggi dari sudut meja dengan lensa sempit;
+   seluruh meja dan kedua robot terlihat seperti diorama.
 
 Pilihan terakhir disimpan di perangkat. Saat *reduced motion* aktif, POV Siaran
-TV tidak bergerak mengikuti bola. Mode Lokal 2 pemain hanya memakai POV Klasik
-dan Siaran TV, karena POV orang pertama hanya bisa untuk satu pemain.
+TV tidak bergerak mengikuti bola. Mode Lokal 2 pemain tidak memakai POV orang
+pertama, karena POV itu hanya bisa untuk satu pemain.
 
 ## 11. Karakter
 
-- Ilustrasi flat 2D orisinal: garis hitam tebal, anggota badan lentur
-  (rubber-hose), wajah sederhana, warna terbatas.
+- **Robot maskot** orisinal, ilustrasi flat 2D: badan kapsul, helm dengan visor kaca
+  dan mata neon berekspresi, lengan lentur, melayang di atas pendorong yang menyala.
+  Garis hitam tebal, bayangan flat.
 - **Dilarang** memakai logo atau merek nyata (Nike, Adidas, Butterfly, dll.) atau
-  bentuk yang menyerupainya. Baju memakai emblem PinkPonk orisinal atau polos.
-- Kustomisasi (MVP): warna baju, warna headband, warna kulit (6 pilihan beragam),
-  warna bat.
-- Animasi: idle, siap, pukul forehand, pukul backhand, smash, menang, kalah
-  (dengan squash & stretch).
-- Dirender sebagai sprite 2D (billboard) di dalam scene 2.5D.
+  bentuk yang menyerupainya. Panel dada memakai emblem PinkPonk (bola menyala).
+- Kustomisasi (MVP): warna rangka, armor, lampu visor, dan bat. Lawan otomatis
+  memakai warna kontras.
+- Pose: idle, siap, forehand, backhand, smash, servis, menang, kalah — masing-masing
+  dengan ekspresi visor (fokus, melirik, garang, mengedip, ^ ^, sedih).
+- Digambar prosedural (Canvas 2D, tanpa file sprite) lalu dirender sebagai billboard
+  di scene 3D; tangan pemegang bat selalu sejajar posisi bat sebenarnya.
 
 ## 12. Tampilan dan tema
 
@@ -200,7 +215,7 @@ dan Siaran TV, karena POV orang pertama hanya bisa untuk satu pemain.
 |-------|-----------|
 | Tutorial singkat (ayunan + timing), bisa dilewati | MVP |
 | Hitung mundur 3-2-1 sebelum servis pertama | MVP |
-| Pause (semua mode kecuali online), Rematch, kembali ke menu | MVP |
+| Jeda (semua mode; online 2× per pemain, maks 60 detik), Rematch, kembali ke menu | MVP |
 | Efek suara + getaran (haptic, hanya di perangkat yang mendukung; iOS Safari tidak) dengan sakelar masing-masing | MVP |
 | Pengaturan grafis: Otomatis / Tinggi / Rendah | MVP |
 | PWA: bisa dipasang ke layar utama; Vs AI, Timing Smash vs AI, dan Lokal bisa offline | MVP |
@@ -247,14 +262,16 @@ tanpa nickname atau IP. Ini data agregat untuk metrik, bukan database aplikasi.
 
 ## 17. Rilis bertahap
 
-1. **Fondasi:** scaffold, CI/CD, tema, deploy kosong ke `dev.pinkponk.my.id`.
-2. **Vs AI:** fisika, aturan skor, AI, POV Klasik.
-3. **Timing Smash** vs AI + kalibrasi.
-4. **Karakter + 3 POV** + kustomisasi.
-5. **Lokal 2 pemain.**
-6. **Online 1v1** (ayunan dan timing).
-7. **PWA, i18n, aksesibilitas, polish** → rilis produksi.
-8. v1.1 sesuai tabel §13.
+1. [x] **Fondasi:** scaffold, CI/CD, tema.
+2. [x] **Vs AI:** fisika, aturan skor, AI.
+3. [x] **Timing Smash** vs AI + kalibrasi.
+4. [x] **Karakter robot + 4 POV** + kustomisasi.
+5. [x] **Lokal 2 pemain.**
+6. [x] **Online 1v1** (ayunan dan timing), jeda, sambung ulang.
+7. [x] **PWA, i18n, aksesibilitas dasar.**
+8. [ ] Deploy ke `dev.pinkponk.my.id` (menunggu domain + secret Cloudflare), playtest
+   di HP sungguhan, tuning angka (jendela timing, AI, fisika), lalu rilis produksi.
+9. [ ] v1.1 sesuai tabel §13 (reaksi emoji sudah ada di online).
 
 ## 18. Keputusan
 
@@ -265,3 +282,6 @@ tanpa nickname atau IP. Ini data agregat untuk metrik, bukan database aplikasi.
 | 2026-10-21 | Lokal 2 pemain di MVP hanya untuk browser desktop; versi HP ke backlog |
 | 2026-10-21 | Audio hanya efek suara, tanpa musik latar |
 | 2026-10-21 | Logo dibuat sendiri: `docs/brand/` (lihat `DESIGN.md` §10) |
+| 2026-10-21 | Karakter berupa robot maskot (bukan manusia) |
+| 2026-10-21 | POV ke-4: Isometrik |
+| 2026-10-21 | Jeda juga tersedia di online (dibatasi agar tidak disalahgunakan) |

@@ -117,16 +117,20 @@ glow diganti bayangan tipis + garis luar 2 px.
 - Dalam game: jejak bola berupa garis lime/pink dengan blending additive di
   tema gelap, normal di tema terang.
 
-## 7. Karakter
+## 7. Karakter (robot maskot)
 
-- Garis hitam `#111` 3 px (skala 1×), sudut membulat; isi warna flat tanpa gradien.
-- Proporsi: kepala bulat kecil, badan kotak membulat, lengan/kaki tabung panjang.
-- Kulit: 6 pilihan (termasuk abu-abu netral seperti referensi).
-- Baju default: `--pink`; headband default: kontras dengan baju.
-- **Tanpa logo merek apa pun.** Emblem di baju (opsional) = logo mark PinkPonk (§10).
-- Aset: SVG sumber → sprite atlas WebP (+ PNG fallback) per pose; target ≤ 120 kB
-  untuk semua pose satu karakter. Warna kustom memakai teknik recolor (mask per
-  bagian) agar tidak perlu atlas per warna.
+- Siluet: helm lebar dengan visor kaca gelap, badan kapsul, lengan pendek lentur,
+  melayang di atas pendorong dengan cahaya neon (tanpa kaki — siluet bulat dan
+  sederhana terbaca jelas dari semua kamera).
+- Garis `#141018` 5 px (kanvas 256×384), sudut membulat; isi warna flat + satu
+  bayangan flat (kanan-bawah) + satu kilau (kiri-atas).
+- Warna yang bisa diatur: **rangka** (helm, lengan), **armor** (badan, telinga),
+  **lampu visor** (mata, antena, inti dada, cahaya pendorong), **bat**.
+- Ekspresi lewat mata di visor: fokus, melirik ke arah pukulan, garang saat smash,
+  mengedip saat servis, ^ ^ saat menang, sedih saat kalah.
+- **Tanpa logo merek apa pun.** Emblem dada = bola menyala (dari logo PinkPonk).
+- Digambar prosedural dengan Canvas 2D saat game dimuat (0 byte aset), 8 pose × 2
+  arah pandang per robot, disiapkan sekaligus agar tidak tersendat.
 
 ## 8. Gerak (motion)
 

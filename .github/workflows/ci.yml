@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [development, production]
+  push:
+    branches: [development, production]
+  schedule:
+    # E2E malam hari (02.00 WIB) di branch development.
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WRANGLER_SEND_METRICS: "false"
+
+jobs:
+  check:
+    name: Typecheck, lint, test, budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm build
+      - name: Budget ukuran
+        run: pnpm size
+      - name: Hook test tidak boleh ikut build produksi
+        run: "! grep -rq '__pp' apps/web/dist/assets"
+      - name: Validasi konfigurasi Cloudflare
+        run: pnpm --filter @pinkponk/worker exec wrangler deploy --dry-run --env production --outdir .wrangler/dry
+      - name: Audit dependency
+        run: pnpm audit --prod --audit-level high
+
+  e2e:
+    name: E2E Playwright
+    needs: check
+    if: github.base_ref == 'production' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+        env:
+          CI: "true"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

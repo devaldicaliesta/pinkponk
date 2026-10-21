@@ -18,19 +18,40 @@
 9. Buat branch `production` dari `development` (GitHub → Branches → New branch).
 10. GitHub → Settings → Branches: proteksi `production` (PR wajib, status check wajib,
    tanpa force-push) dan `development` (status check wajib).
-11. Setelah situs stabil: aktifkan HSTS di Cloudflare.
+11. GitHub → Settings → Environments: buat `development` dan `production` (opsional:
+    reviewer wajib untuk `production`). Secret boleh disimpan per environment.
+12. Cloudflare → Rules → Redirect Rules: `www.pinkponk.my.id/*` → `https://pinkponk.my.id/$1`
+    (301). Tambahkan juga record DNS `www` (proxied) agar aturan berlaku.
+13. Workers & Pages → Analytics Engine: pastikan fitur aktif untuk akun (dataset
+    `pinkponk_events` dibuat otomatis saat data pertama ditulis).
+14. Setelah situs stabil: aktifkan HSTS di Cloudflare.
+
+Deploy pertama terjadi otomatis saat ada push ke `development` setelah secret diisi.
+Tanpa secret, workflow Deploy melewati langkah deploy dengan pemberitahuan (tidak gagal).
 
 ## 2. Alur otomatis (GitHub Actions)
 
 | Pemicu | Job |
 |--------|-----|
 | PR ke `development` | `pnpm check` + build (tanpa deploy: Cloudflare tidak membuat preview URL untuk Worker dengan Durable Object) |
-| Push ke `development` | `pnpm check` → `wrangler deploy --env dev` → `dev.pinkponk.my.id` |
-| PR `development` → `production` | `pnpm check` + E2E + Lighthouse CI |
-| Push ke `production` | `wrangler deploy --env production` → `pinkponk.my.id` |
+| Push ke `development` | `pnpm check` → build (`PP_SITE=dev`) → `wrangler deploy --env dev` → `dev.pinkponk.my.id` |
+| PR `development` → `production` | `pnpm check` + build + budget + dry-run + audit + E2E |
+| Push ke `production` | `pnpm check` → build (`PP_SITE=production`) → `wrangler deploy --env production` → `pinkponk.my.id` |
+| Tiap malam (02.00 WIB) | E2E di `development` |
 
-Custom domain (`pinkponk.my.id`, `www`, `dev`) didefinisikan di `wrangler.toml`
-(`routes` dengan `custom_domain = true`), bukan diklik manual.
+Custom domain (`pinkponk.my.id`, `dev.pinkponk.my.id`) didefinisikan di
+`worker/wrangler.jsonc` (`routes` dengan `custom_domain: true`), bukan diklik manual.
+Build web memakai `PP_SITE=dev|production` untuk menulis `_headers`, `robots.txt`, dan
+`sitemap.xml` yang sesuai situsnya.
+
+## 2a. Deploy manual (darurat)
+
+```
+PP_SITE=dev pnpm build && pnpm deploy:dev
+PP_SITE=production pnpm build && pnpm deploy:production
+```
+
+Butuh `CLOUDFLARE_API_TOKEN` dan `CLOUDFLARE_ACCOUNT_ID` di environment.
 
 ## 3. Rollback
 
