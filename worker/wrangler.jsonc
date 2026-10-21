@@ -1,0 +1,50 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "pinkponk",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "../apps/web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Rute ini harus sampai ke Worker, bukan dilayani sebagai file statis.
+    "run_worker_first": ["/api/*", "/ws/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+  "vars": {
+    "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8787,http://localhost:4173"
+  },
+  "env": {
+    "dev": {
+      "routes": [{ "pattern": "dev.pinkponk.my.id", "custom_domain": true }],
+      "durable_objects": {
+        "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
+      },
+      "vars": { "ALLOWED_ORIGINS": "https://dev.pinkponk.my.id" },
+      "ratelimits": [
+        { "name": "RL_ROOM", "namespace_id": "2001", "simple": { "limit": 10, "period": 60 } },
+        { "name": "RL_JOIN", "namespace_id": "2002", "simple": { "limit": 30, "period": 60 } },
+        { "name": "RL_EVENT", "namespace_id": "2003", "simple": { "limit": 30, "period": 60 } }
+      ],
+      "analytics_engine_datasets": [{ "binding": "EVENTS", "dataset": "pinkponk_events_dev" }]
+    },
+    "production": {
+      "routes": [{ "pattern": "pinkponk.my.id", "custom_domain": true }],
+      "durable_objects": {
+        "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
+      },
+      "vars": { "ALLOWED_ORIGINS": "https://pinkponk.my.id" },
+      "ratelimits": [
+        { "name": "RL_ROOM", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
+        { "name": "RL_JOIN", "namespace_id": "1002", "simple": { "limit": 30, "period": 60 } },
+        { "name": "RL_EVENT", "namespace_id": "1003", "simple": { "limit": 30, "period": 60 } }
+      ],
+      "analytics_engine_datasets": [{ "binding": "EVENTS", "dataset": "pinkponk_events" }]
+    }
+  }
+}

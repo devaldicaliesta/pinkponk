@@ -439,6 +439,15 @@ export class Match {
     this.setPhase("serve");
   }
 
+  /** Pemain `loser` keluar dari pertandingan (misalnya putus koneksi terlalu lama). */
+  forfeit(loser: Side): void {
+    if (this.winner !== null) return;
+    this.winner = other(loser);
+    this.pending = null;
+    this.events.push({ type: "match", winner: this.winner });
+    this.setPhase("over");
+  }
+
   /** Perkiraan titik pukul berikutnya untuk pemain `p` (cincin timing, AI). */
   upcomingCrossing(p: Side) {
     const r = this.rally;

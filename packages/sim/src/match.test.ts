@@ -124,6 +124,14 @@ describe("Match", () => {
     expect(events).toContainEqual({ type: "judge", player: 0, grade: "miss" });
   });
 
+  it("forfeit: lawan menang dan pertandingan selesai", () => {
+    const m = new Match({ mode: "swing", bestOf: 3, seed: 1, skipCountdown: true });
+    m.forfeit(0);
+    expect(m.winner).toBe(1);
+    expect(m.phase).toBe("over");
+    expect(m.events).toContainEqual({ type: "match", winner: 1 });
+  });
+
   it("ayunan: bat di posisi bola → bola dikembalikan", () => {
     const { m, ideal } = serveToPlayer0("swing");
     const x = m.upcomingCrossing(0)!.x;

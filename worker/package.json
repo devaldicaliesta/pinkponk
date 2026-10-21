@@ -1,0 +1,20 @@
+{
+  "name": "@pinkponk/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "typecheck": "tsc -p .",
+    "deploy:dev": "wrangler deploy --env dev",
+    "deploy:production": "wrangler deploy --env production",
+    "dry-run": "wrangler deploy --dry-run --env production --outdir .wrangler/dry"
+  },
+  "dependencies": {
+    "@pinkponk/protocol": "workspace:*",
+    "@pinkponk/sim": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260702.1",
+    "wrangler": "4.143.1"
+  }
+}
