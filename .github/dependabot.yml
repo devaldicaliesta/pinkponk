@@ -11,6 +11,10 @@ updates:
       runtime:
         dependency-type: production
     open-pull-requests-limit: 5
+    # Versi mayor sengaja dikunci ke rilis stabil; naikkan manual setelah diuji.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     target-branch: development
