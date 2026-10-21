@@ -17,7 +17,16 @@ import {
   WebGLRenderer,
 } from "three";
 import type { Pov } from "../state/settings";
-import { CANVAS_H, CANVAS_W, drawCharacter, type Look, type Pose, type View } from "./character";
+import {
+  batHandX,
+  CANVAS_H,
+  CANVAS_W,
+  drawCharacter,
+  type Look,
+  POSE_LIST,
+  type Pose,
+  type View,
+} from "./character";
 import { buildScene, type SceneParts, type ThemeColors } from "./scene";
 import type { MatchView } from "./session";
 
@@ -58,6 +67,8 @@ interface Avatar {
   textures: Map<string, CanvasTexture>;
   look: Look;
   view: View;
+  /** Offset tangan-bat terhadap tengah sprite (m), dihaluskan antar pose. */
+  handOffset: number;
 }
 
 export class GameRenderer {
@@ -103,7 +114,11 @@ export class GameRenderer {
 
   private makeAvatar(side: Side): Avatar {
     const mat = new MeshBasicMaterial({ transparent: true, alphaTest: 0.4 });
-    const mesh = new Mesh(new PlaneGeometry(SPRITE_W, SPRITE_H), mat);
+    // Titik tumpu di kaki agar sprite yang dimiringkan tetap berdiri di lantai.
+    const geo = new PlaneGeometry(SPRITE_W, SPRITE_H);
+    geo.translate(0, SPRITE_H / 2, 0);
+    const mesh = new Mesh(geo, mat);
+    mesh.rotation.order = "YXZ";
     this.parts.scene.add(mesh);
     const view: View = side === this.opts.viewer ? "back" : "front";
     const a: Avatar = {
@@ -114,7 +129,10 @@ export class GameRenderer {
       textures: new Map(),
       look: this.opts.looks[side],
       view,
+      handOffset: 0,
     };
+    // Siapkan semua tekstur pose sekarang agar tidak tersendat saat pose pertama muncul.
+    for (const pose of POSE_LIST) this.texture(a, pose);
     this.setPose(a, "idle");
     return a;
   }
@@ -241,18 +259,37 @@ export class GameRenderer {
   private updateAvatars(v: MatchView, now: number): void {
     for (const side of [0, 1] as const) {
       const a = this.avatars[side];
+      // Pose menang/kalah dari pertandingan sebelumnya dilepas saat pertandingan baru.
+      if (v.phase === "countdown" && a.poseUntil === Number.POSITIVE_INFINITY) a.poseUntil = 0;
       if (now > a.poseUntil) {
         const next: Pose = v.phase === "rally" ? "ready" : "idle";
         if (a.pose !== next) this.setPose(a, next, now);
       }
-      // Tangan pemegang bat ada di kanan karakter: dari belakang tampak di kanan layar,
-      // dari depan di kiri layar. Badan digeser agar tangan sejajar bat.
-      const bodyOffset = side === this.opts.viewer ? -0.3 : 0.21;
-      const z = (side === 0 ? HIT_PLANE_Z + 0.32 : -HIT_PLANE_Z - 0.32) * this.flip;
-      const x = v.bats[side] * this.flip + bodyOffset;
-      a.mesh.position.set(x, FLOOR_Y + SPRITE_H / 2 - 0.02, z);
-      a.mesh.rotation.y = Math.atan2(this.camPos.x - x, this.camPos.z - z);
+      // Geser sprite agar tangan pemegang bat (yang posisinya beda tiap pose) tepat di
+      // posisi bat sebenarnya. Dari depan gambar dicerminkan, jadi arah offset dibalik.
+      const handPx = batHandX(a.pose) - CANVAS_W / 2;
+      const target = ((a.view === "back" ? 1 : -1) * handPx * SPRITE_W) / CANVAS_W;
+      a.handOffset += (target - a.handOffset) * (this.opts.reducedMotion ? 1 : 0.35);
+      const batX = v.bats[side] * this.flip;
+      const baseZ = (side === 0 ? HIT_PLANE_Z + 0.32 : -HIT_PLANE_Z - 0.32) * this.flip;
+      const yaw = Math.atan2(this.camPos.x - batX, this.camPos.z - baseZ);
+      a.mesh.position.set(
+        batX - Math.cos(yaw) * a.handOffset,
+        FLOOR_Y,
+        baseZ + Math.sin(yaw) * a.handOffset,
+      );
+      a.mesh.rotation.y = yaw;
+      // Miringkan sebagian ke arah kamera tinggi agar sprite tidak tampak gepeng.
+      const dx = this.camPos.x - a.mesh.position.x;
+      const dz = this.camPos.z - a.mesh.position.z;
+      const pitch = Math.atan2(this.camPos.y - (FLOOR_Y + SPRITE_H / 2), Math.hypot(dx, dz));
+      a.mesh.rotation.x = -Math.max(0, pitch) * 0.5;
       a.mesh.visible = !(this.pov === "first" && side === this.opts.viewer);
+      this.parts.playerShadows[side].position.set(
+        a.mesh.position.x,
+        FLOOR_Y + 0.005,
+        a.mesh.position.z,
+      );
     }
   }
 
@@ -303,9 +340,17 @@ export class GameRenderer {
         look = new Vector3(viewerBat * 0.3, 0, -1.1);
         fov = portrait ? 75 : 62;
         break;
+      case "iso": {
+        // Isometrik: kamera jauh dan tinggi dari sudut meja, lensa sempit (hampir ortografis).
+        // Potret: sudut lebih sejajar panjang meja agar kedua robot muat di layar sempit.
+        pos = portrait ? new Vector3(3.2, 10.5, 9.6) : new Vector3(6.2, 7.2, 6.4);
+        look = portrait ? new Vector3(0, -0.4, 0.35) : new Vector3(0, -0.25, 0);
+        fov = portrait ? 34 : 24;
+        break;
+      }
       case "tv": {
         const follow = this.opts.reducedMotion ? 0 : v.ball.pos.z * f * 0.25;
-        pos = portrait ? new Vector3(2.4, 2.6, 3.4) : new Vector3(2.6, 1.7, 2.6);
+        pos = portrait ? new Vector3(0.9, 3.3, 5.0) : new Vector3(3.2, 2.0, 3.4);
         pos.z += follow;
         look = new Vector3(0, -0.1, -0.2 + follow);
         fov = portrait ? 62 : 48;

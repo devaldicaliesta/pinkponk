@@ -205,3 +205,65 @@ describe("RoomCore", () => {
     expect(room.exists).toBe(false);
   });
 });
+
+describe("RoomCore — jeda dan koneksi diam", () => {
+  beforeEach(() => {
+    clock = 1_000;
+    tokenN = 1;
+  });
+
+  const startedRoom = () => {
+    const room = makeRoom();
+    const a = join(room, "a", "Rara", true);
+    const b = join(room, "b", "Budi", false);
+    return { room, a, b };
+  };
+
+  /** Jaga kedua koneksi tetap "hidup" dengan ping, seperti klien sungguhan. */
+  const advanceAlive = (room: RoomCore, conns: FakeConn[], ms: number) => {
+    for (let t = 0; t < ms; t += 500) {
+      for (const c of conns) room.message(c, encodePing(t));
+      advance(room, 500);
+    }
+  };
+
+  it("pemain yang diam lebih dari 5 detik dianggap terputus", () => {
+    const { room, a, b } = startedRoom();
+    for (let t = 0; t < 6000; t += 500) {
+      room.message(a, encodePing(t));
+      advance(room, 500);
+    }
+    expect(b.closed?.reason).toBe("silent");
+    expect(room.status).toBe("paused");
+    expect(a.last("paused")?.reason).toBe("disconnect");
+  });
+
+  it("pemain bisa meminta jeda, simulasi berhenti, lalu lanjut", () => {
+    const { room, a, b } = startedRoom();
+    advanceAlive(room, [a, b], 1000);
+    room.message(a, JSON.stringify({ t: "pause" }));
+    expect(room.status).toBe("paused");
+    expect(b.last("paused")).toMatchObject({ player: 0, reason: "request", pausesLeft: [1, 2] });
+    const tick = room.match!.tick;
+    advanceAlive(room, [a, b], 3000);
+    expect(room.match!.tick).toBe(tick);
+    room.message(b, JSON.stringify({ t: "resume" }));
+    expect(room.status).toBe("playing");
+    advanceAlive(room, [a, b], 500);
+    expect(room.match!.tick - tick).toBeLessThan(Math.ceil(700 / MS_PER_TICK));
+  });
+
+  it("jatah jeda terbatas dan jeda berakhir otomatis setelah 60 detik", () => {
+    const { room, a, b } = startedRoom();
+    for (let i = 0; i < 2; i++) {
+      room.message(a, JSON.stringify({ t: "pause" }));
+      room.message(a, JSON.stringify({ t: "resume" }));
+    }
+    room.message(a, JSON.stringify({ t: "pause" }));
+    expect(room.status).toBe("playing");
+    room.message(b, JSON.stringify({ t: "pause" }));
+    expect(room.status).toBe("paused");
+    advanceAlive(room, [a, b], 61_000);
+    expect(room.status).toBe("playing");
+  });
+});

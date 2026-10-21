@@ -9,6 +9,9 @@ import {
   MSG_INPUT,
   MSG_PING,
   messageType,
+  PAUSE_MAX_MS,
+  PAUSES_PER_MATCH,
+  type PauseReason,
   parseClientControl,
   type RoomConfig,
   type RoomErrorCode,
@@ -36,11 +39,16 @@ interface Seat {
   token: string;
   disconnectedAt: number | null;
   rematch: boolean;
+  pausesLeft: number;
+  lastSeen: number;
 }
 
 export type RoomStatus = "lobby" | "playing" | "paused" | "over";
 
 export const RECONNECT_GRACE_MS = 30_000;
+// Klien mengirim input 30x/detik saat bermain; diam selama ini berarti koneksinya mati
+// walau penutupan TCP belum sampai ke server.
+export const SILENCE_MS = 5_000;
 const SNAPSHOT_EVERY_TICKS = 4;
 const MAX_CATCHUP_TICKS = 24;
 const MESSAGES_PER_SECOND = 60;
@@ -58,7 +66,10 @@ export class RoomCore {
   status: RoomStatus = "lobby";
   match: Match | null = null;
   private startMs = 0;
+  /** Saat simulasi berhenti (dipakai untuk menggeser waktu saat lanjut). */
   private pausedAt = 0;
+  private pauseDeadline = 0;
+  private pauseReason: PauseReason | null = null;
   private pendingEvents: MatchEvent[] = [];
   private readonly buckets = new Map<string, TokenBucket>();
   private readonly seatOf = new Map<string, Side>();
@@ -95,6 +106,11 @@ export class RoomCore {
     if (size > MAX_CLIENT_MESSAGE) {
       this.reject(conn, "bad-message");
       return;
+    }
+    const seen = this.seatOf.get(conn.id);
+    if (seen !== undefined) {
+      const s = this.seats[seen];
+      if (s) s.lastSeen = this.deps.now();
     }
     if (typeof data === "string") {
       const msg = parseClientControl(data);
@@ -140,11 +156,9 @@ export class RoomCore {
     const s = this.seats[seat];
     if (!s || s.conn?.id !== conn.id) return;
     s.conn = null;
-    if (this.status === "playing") {
+    if (this.status === "playing" || (this.status === "paused" && this.pauseReason === "request")) {
       s.disconnectedAt = this.deps.now();
-      this.pausedAt = this.deps.now();
-      this.status = "paused";
-      this.broadcast({ t: "paused", player: seat, resumeBy: this.pausedAt + RECONNECT_GRACE_MS });
+      this.pause(seat, "disconnect");
       return;
     }
     if (this.status === "paused") {
@@ -162,11 +176,22 @@ export class RoomCore {
   tick(): void {
     const now = this.deps.now();
     if (this.status === "paused") {
-      if (now - this.pausedAt >= RECONNECT_GRACE_MS) this.walkover();
+      if (now >= this.pauseDeadline) {
+        if (this.pauseReason === "disconnect") this.walkover();
+        else this.unpause();
+      }
       return;
     }
     const m = this.match;
     if (this.status !== "playing" || !m) return;
+    for (const s of this.seats) {
+      if (s?.conn && now - s.lastSeen > SILENCE_MS) {
+        const conn = s.conn;
+        conn.close(4000, "silent");
+        this.close(conn);
+        return;
+      }
+    }
     const target = Math.floor((now - this.startMs) / MS_PER_TICK);
     let steps = Math.min(MAX_CATCHUP_TICKS, target - m.tick);
     while (steps-- > 0) {
@@ -188,6 +213,19 @@ export class RoomCore {
         return;
       case "rematch":
         if (seat !== undefined) this.rematch(seat);
+        return;
+      case "pause": {
+        const s = seat === undefined ? null : this.seats[seat];
+        if (seat !== undefined && s && this.status === "playing" && s.pausesLeft > 0) {
+          s.pausesLeft -= 1;
+          this.pause(seat, "request");
+        }
+        return;
+      }
+      case "resume":
+        if (seat !== undefined && this.status === "paused" && this.pauseReason === "request") {
+          this.unpause();
+        }
         return;
       case "emoji":
         if (seat !== undefined && this.status !== "lobby") {
@@ -234,7 +272,15 @@ export class RoomCore {
 
   private seat(conn: Conn, side: Side, nick: string): void {
     const token = this.deps.randomToken();
-    this.seats[side] = { conn, nick, token, disconnectedAt: null, rematch: false };
+    this.seats[side] = {
+      conn,
+      nick,
+      token,
+      disconnectedAt: null,
+      rematch: false,
+      pausesLeft: PAUSES_PER_MATCH,
+      lastSeen: this.deps.now(),
+    };
     this.seatOf.set(conn.id, side);
     this.sendTo(conn, { t: "welcome", you: side, code: this.code, token });
     this.broadcastLobby();
@@ -245,6 +291,7 @@ export class RoomCore {
     if (!s) return;
     s.conn = conn;
     s.disconnectedAt = null;
+    s.lastSeen = this.deps.now();
     this.seatOf.set(conn.id, side);
     this.sendTo(conn, { t: "welcome", you: side, code: this.code, token: s.token });
     if (this.config && this.seats[0] && this.seats[1]) {
@@ -255,11 +302,32 @@ export class RoomCore {
       });
     }
     const bothBack = this.seats.every((x) => x?.conn);
-    if (this.status === "paused" && bothBack) {
-      this.startMs += this.deps.now() - this.pausedAt;
-      this.status = "playing";
-      this.broadcast({ t: "resumed" });
-    }
+    if (this.status === "paused" && this.pauseReason === "disconnect" && bothBack) this.unpause();
+  }
+
+  private pause(player: Side, reason: PauseReason): void {
+    const now = this.deps.now();
+    if (this.status === "playing") this.pausedAt = now;
+    this.status = "paused";
+    this.pauseReason = reason;
+    this.pauseDeadline = now + (reason === "disconnect" ? RECONNECT_GRACE_MS : PAUSE_MAX_MS);
+    this.broadcast({
+      t: "paused",
+      player,
+      reason,
+      resumeBy: this.pauseDeadline,
+      pausesLeft: [this.seats[0]?.pausesLeft ?? 0, this.seats[1]?.pausesLeft ?? 0],
+    });
+  }
+
+  private unpause(): void {
+    // Waktu jeda tidak dihitung: geser titik awal simulasi.
+    const now = this.deps.now();
+    this.startMs += now - this.pausedAt;
+    for (const s of this.seats) if (s) s.lastSeen = now;
+    this.status = "playing";
+    this.pauseReason = null;
+    this.broadcast({ t: "resumed" });
   }
 
   private startMatch(): void {
@@ -272,8 +340,12 @@ export class RoomCore {
     });
     this.startMs = this.deps.now();
     this.pendingEvents = [];
-    a.rematch = false;
-    b.rematch = false;
+    for (const s of [a, b]) {
+      s.rematch = false;
+      s.pausesLeft = PAUSES_PER_MATCH;
+      s.lastSeen = this.deps.now();
+    }
+    this.pauseReason = null;
     this.status = "playing";
     this.broadcast({ t: "start", config: this.config, players: [a.nick, b.nick] });
   }

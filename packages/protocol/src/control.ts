@@ -10,6 +10,8 @@ export const EMOJIS = ["👍", "🔥", "😂", "😮", "😤", "👏"] as const;
 export type ClientControl =
   | { t: "hello"; nick: string; create: boolean; config: RoomConfig; token: string | null }
   | { t: "rematch" }
+  | { t: "pause" }
+  | { t: "resume" }
   | { t: "emoji"; e: number };
 
 export type RoomErrorCode = "not-found" | "full" | "bad-nickname" | "rate-limited" | "bad-message";
@@ -18,12 +20,24 @@ export type ServerControl =
   | { t: "welcome"; you: Side; code: string; token: string }
   | { t: "lobby"; players: [string | null, string | null]; config: RoomConfig }
   | { t: "start"; config: RoomConfig; players: [string, string] }
-  | { t: "paused"; player: Side; resumeBy: number }
+  | {
+      t: "paused";
+      player: Side;
+      reason: PauseReason;
+      resumeBy: number;
+      pausesLeft: [number, number];
+    }
   | { t: "resumed" }
   | { t: "left"; player: Side }
   | { t: "rematch"; player: Side }
   | { t: "emoji"; player: Side; e: number }
   | { t: "error"; code: RoomErrorCode };
+
+export type PauseReason = "disconnect" | "request";
+
+/** Jeda atas permintaan pemain online: jumlah per pemain per pertandingan dan lamanya. */
+export const PAUSES_PER_MATCH = 2;
+export const PAUSE_MAX_MS = 60_000;
 
 export const MAX_CONTROL_LENGTH = 200;
 
@@ -56,7 +70,9 @@ export const parseClientControl = (text: string): ClientControl | null => {
       return { t: "hello", nick: data.nick, create: data.create, config, token };
     }
     case "rematch":
-      return { t: "rematch" };
+    case "pause":
+    case "resume":
+      return { t: data.t };
     case "emoji":
       return typeof data.e === "number" &&
         Number.isInteger(data.e) &&

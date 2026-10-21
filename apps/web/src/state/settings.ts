@@ -5,7 +5,7 @@ export type Theme = "system" | "dark" | "light";
 export type Lang = "id" | "en";
 export type Graphics = "auto" | "high" | "low";
 export type Motion = "system" | "reduced" | "full";
-export type Pov = "classic" | "first" | "tv";
+export type Pov = "classic" | "first" | "tv" | "iso";
 
 export interface CharacterLook {
   frame: number;
@@ -87,7 +87,7 @@ export const sanitizeSettings = (raw: unknown): Settings => {
     graphics: oneOf(r.graphics, ["auto", "high", "low"], d.graphics),
     motion: oneOf(r.motion, ["system", "reduced", "full"], d.motion),
     colorblind: r.colorblind === true,
-    pov: r.pov === null ? null : oneOf<Pov>(r.pov, ["classic", "first", "tv"], "classic"),
+    pov: r.pov === null ? null : oneOf<Pov>(r.pov, ["classic", "first", "tv", "iso"], "classic"),
     calibrationMs: num(r.calibrationMs, 0, -150, 150),
     character: {
       frame: num(ch.frame, 0, 0, 5),

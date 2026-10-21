@@ -31,6 +31,7 @@ export const id = {
   "pov.classic": "Klasik",
   "pov.first": "Orang pertama",
   "pov.tv": "Siaran TV",
+  "pov.iso": "Isometrik",
 
   "nick.title": "Siapa namamu?",
   "nick.label": "Nickname",
@@ -76,6 +77,8 @@ export const id = {
   "game.go": "Mulai!",
   "game.pause": "Jeda",
   "game.resume": "Lanjut",
+  "game.pausedBy": "{name} menjeda pertandingan. Lanjut otomatis dalam {s} detik.",
+  "game.pausesLeft": "Sisa jatah jeda kamu: {n}",
   "game.quit": "Keluar",
   "game.camera": "Ganti kamera",
   "game.deuce": "Deuce",

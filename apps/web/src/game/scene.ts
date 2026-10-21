@@ -73,6 +73,7 @@ export interface SceneParts {
   ballMat: MeshBasicMaterial;
   ballGlow: Sprite;
   shadow: Mesh;
+  playerShadows: [Mesh, Mesh];
   bats: [Group, Group];
   ring: Mesh;
   ringTarget: Mesh;
@@ -127,6 +128,22 @@ export const buildScene = (colors: ThemeColors): SceneParts => {
   floorGlow.rotation.x = -Math.PI / 2;
   floorGlow.position.y = FLOOR_Y + 0.002;
   scene.add(floorGlow);
+
+  // Bayangan meja di lantai (geser diagonal, seperti cahaya dari atas-depan).
+  const tableShadow = new Mesh(
+    track(new PlaneGeometry(TABLE_HALF_W * 2, TABLE_HALF_L * 2)),
+    track(
+      new MeshBasicMaterial({
+        color: "#000000",
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+      }),
+    ),
+  );
+  tableShadow.rotation.x = -Math.PI / 2;
+  tableShadow.position.set(0.3, FLOOR_Y + 0.004, 0.25);
+  scene.add(tableShadow);
 
   const tableTop = track(new MeshBasicMaterial({ color: colors.table }));
   const top = new Mesh(track(new BoxGeometry(TABLE_HALF_W * 2, 0.03, TABLE_HALF_L * 2)), tableTop);
@@ -223,6 +240,23 @@ export const buildScene = (colors: ThemeColors): SceneParts => {
   shadow.rotation.x = -Math.PI / 2;
   scene.add(shadow);
 
+  const blobGeo = track(new CircleGeometry(0.42, 24));
+  const blobMat = track(
+    new MeshBasicMaterial({
+      color: "#000000",
+      transparent: true,
+      opacity: 0.25,
+      depthWrite: false,
+    }),
+  );
+  const playerShadows: [Mesh, Mesh] = [new Mesh(blobGeo, blobMat), new Mesh(blobGeo, blobMat)];
+  for (const s of playerShadows) {
+    s.rotation.x = -Math.PI / 2;
+    s.scale.set(1, 0.55, 1);
+    s.position.y = FLOOR_Y + 0.005;
+    scene.add(s);
+  }
+
   const bats: [Group, Group] = [makeBat("#e5174f"), makeBat("#111111")];
   scene.add(bats[0], bats[1]);
 
@@ -264,6 +298,7 @@ export const buildScene = (colors: ThemeColors): SceneParts => {
     ballMat,
     ballGlow,
     shadow,
+    playerShadows,
     bats,
     ring,
     ringTarget,

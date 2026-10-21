@@ -32,7 +32,8 @@ export type SessionKind = "ai" | "local" | "online";
 
 export interface NetStatus {
   pingMs: number | null;
-  paused: { player: Side; resumeBy: number } | null;
+  paused: { player: Side; resumeBy: number; reason: "disconnect" | "request" } | null;
+  pausesLeft: [number, number];
   opponentLeft: boolean;
   reconnecting: boolean;
   rematch: [boolean, boolean];

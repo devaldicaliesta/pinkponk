@@ -22,7 +22,7 @@ interface Props {
 }
 
 const RING_LEAD_MS = 650;
-const POVS: Pov[] = ["classic", "first", "tv"];
+const POVS: Pov[] = ["classic", "first", "tv", "iso"];
 
 const defaultPov = (session: Session): Pov => {
   const saved = getSettings().pov;
@@ -54,7 +54,7 @@ const initialHud = (session: Session): HudState => ({
 const snapshotHud = (s: HudState): HudState => ({
   ...s,
   view: { ...s.view, points: [...s.view.points], games: [...s.view.games] },
-  net: s.net ? { ...s.net, rematch: [...s.net.rematch] } : null,
+  net: s.net ? { ...s.net, rematch: [...s.net.rematch], pausesLeft: [...s.net.pausesLeft] } : null,
 });
 
 const hudKey = (s: HudState): string =>
@@ -71,7 +71,7 @@ const hudKey = (s: HudState): string =>
     s.serveHint,
     s.emoji?.key,
     s.net
-      ? `${Math.round((s.net.pingMs ?? 0) / 10)}|${!!s.net.paused}|${s.net.opponentLeft}|${s.net.reconnecting}|${s.net.rematch.join()}`
+      ? `${Math.round((s.net.pingMs ?? 0) / 10)}|${s.net.paused?.reason}|${s.net.pausesLeft.join()}|${s.net.opponentLeft}|${s.net.reconnecting}|${s.net.rematch.join()}`
       : "",
   ].join(";");
 
@@ -218,7 +218,8 @@ const GameView = ({ session, onExit }: Props) => {
 
     raf = requestAnimationFrame(frame);
     const onVisibility = () => {
-      if (document.hidden && session.canPause()) {
+      // Online tidak dijeda otomatis karena jatah jeda terbatas.
+      if (document.hidden && session.kind !== "online" && session.canPause()) {
         session.setPaused(true);
         setPaused(true);
       }
@@ -249,7 +250,8 @@ const GameView = ({ session, onExit }: Props) => {
 
   const pause = (on: boolean) => {
     session.setPaused(on);
-    setPaused(on);
+    // Jeda online ditampilkan dari status server, bukan state lokal.
+    if (session.kind !== "online") setPaused(on);
   };
 
   const rematch = () => {
@@ -258,16 +260,20 @@ const GameView = ({ session, onExit }: Props) => {
     session.rematch();
   };
 
+  const over = hud.view.phase === "over" && hud.view.winner !== null;
+  const netPause = hud.net?.paused ?? null;
+  const showPause = !over && (paused || netPause?.reason === "request");
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "KeyV") cyclePov();
-      if (e.code === "Escape" && session.canPause()) pause(!paused);
+      if (e.code !== "Escape" && e.code !== "KeyP") return;
+      if (showPause) pause(false);
+      else if (session.canPause()) pause(true);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
-
-  const over = hud.view.phase === "over" && hud.view.winner !== null;
 
   return (
     <div
@@ -289,8 +295,22 @@ const GameView = ({ session, onExit }: Props) => {
         onCamera={cyclePov}
         onEmoji={session instanceof OnlineSession ? (e) => session.sendEmoji(e) : undefined}
       />
-      {paused && !over && (
-        <PauseMenu pov={pov} onResume={() => pause(false)} onQuit={onExit} onCamera={cyclePov} />
+      {showPause && (
+        <PauseMenu
+          pov={pov}
+          onResume={() => pause(false)}
+          onQuit={onExit}
+          onCamera={cyclePov}
+          online={
+            netPause && hud.net
+              ? {
+                  by: session.names[netPause.player],
+                  resumeBy: netPause.resumeBy,
+                  pausesLeft: session.you === null ? 0 : hud.net.pausesLeft[session.you],
+                }
+              : null
+          }
+        />
       )}
       {over && (
         <ResultPanel
@@ -302,8 +322,8 @@ const GameView = ({ session, onExit }: Props) => {
           onMenu={onExit}
         />
       )}
-      {!over && hud.net?.paused && <NetOverlay resumeBy={hud.net.paused.resumeBy} />}
-      {!over && !hud.net?.paused && hud.net?.reconnecting && <NetOverlay resumeBy={null} />}
+      {!over && netPause?.reason === "disconnect" && <NetOverlay resumeBy={netPause.resumeBy} />}
+      {!over && !netPause && hud.net?.reconnecting && <NetOverlay resumeBy={null} />}
     </div>
   );
 };

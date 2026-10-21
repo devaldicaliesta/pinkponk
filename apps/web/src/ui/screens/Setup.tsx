@@ -22,7 +22,8 @@ export const Setup = ({ mode, onStart, onBack }: Props) => {
   const [bestOf, setBestOf] = useState<BestOf>(mode === "timing" ? 1 : 3);
   const saved = getSettings().pov;
   const [pov, setPov] = useState<Pov>(saved ?? (mode === "local" ? "tv" : "classic"));
-  const povs: Pov[] = mode === "local" ? ["classic", "tv"] : ["classic", "first", "tv"];
+  const povs: Pov[] =
+    mode === "local" ? ["classic", "tv", "iso"] : ["classic", "first", "tv", "iso"];
 
   return (
     <main class="screen">

@@ -33,6 +33,7 @@ export const en: Dict = {
   "pov.classic": "Classic",
   "pov.first": "First person",
   "pov.tv": "TV broadcast",
+  "pov.iso": "Isometric",
 
   "nick.title": "What's your name?",
   "nick.label": "Nickname",
@@ -78,6 +79,8 @@ export const en: Dict = {
   "game.go": "Go!",
   "game.pause": "Pause",
   "game.resume": "Resume",
+  "game.pausedBy": "{name} paused the match. Resumes automatically in {s} s.",
+  "game.pausesLeft": "Pauses you have left: {n}",
   "game.quit": "Quit",
   "game.camera": "Switch camera",
   "game.deuce": "Deuce",

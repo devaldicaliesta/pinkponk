@@ -1,4 +1,10 @@
-import type { RoomConfig, ServerControl, Snapshot } from "@pinkponk/protocol";
+import {
+  PAUSE_MAX_MS,
+  PAUSES_PER_MATCH,
+  type RoomConfig,
+  type ServerControl,
+  type Snapshot,
+} from "@pinkponk/protocol";
 import {
   BAT_MAX_X,
   BAT_SPEED,
@@ -48,6 +54,7 @@ export class OnlineSession implements Session {
   private status: NetStatus = {
     pingMs: null,
     paused: null,
+    pausesLeft: [PAUSES_PER_MATCH, PAUSES_PER_MATCH],
     opponentLeft: false,
     reconnecting: false,
     rematch: [false, false],
@@ -132,10 +139,16 @@ export class OnlineSession implements Session {
         this.client.clock.reset();
         this.status.rematch = [false, false];
         this.status.opponentLeft = false;
+        this.status.pausesLeft = [PAUSES_PER_MATCH, PAUSES_PER_MATCH];
         break;
       case "paused":
         // Jam server dan perangkat bisa berbeda; hitung ulang batas waktu secara lokal.
-        this.status.paused = { player: m.player, resumeBy: Date.now() + RECONNECT_GRACE_MS };
+        this.status.paused = {
+          player: m.player,
+          reason: m.reason,
+          resumeBy: Date.now() + (m.reason === "disconnect" ? RECONNECT_GRACE_MS : PAUSE_MAX_MS),
+        };
+        this.status.pausesLeft = m.pausesLeft;
         break;
       case "resumed":
         this.status.paused = null;
@@ -181,10 +194,13 @@ export class OnlineSession implements Session {
     return c ? { atMs: this.renderMs + c.ticks * MS_PER_TICK, x: c.x, y: c.y, z: c.z } : null;
   }
 
-  setPaused(): void {}
+  /** Jeda online diputuskan server agar kedua pemain berhenti bersamaan. */
+  setPaused(paused: boolean): void {
+    this.client.sendControl({ t: paused ? "pause" : "resume" });
+  }
 
   canPause(): boolean {
-    return false;
+    return this.status.paused === null && this.status.pausesLeft[this.you] > 0;
   }
 
   rematch(): void {
