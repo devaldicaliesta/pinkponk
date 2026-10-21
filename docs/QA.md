@@ -76,7 +76,7 @@ Checklist:
 - [ ] Reduced motion mematikan shake/slow-mo.
 - [ ] Tidak ada logo merek di aset mana pun.
 - [ ] Header keamanan terpasang (cek securityheaders.com).
-- [ ] `dev.pinkponk.my.id` tidak terindeks, `pinkponk.my.id` punya OG image.
+- [ ] `pinkponk-dev.panduarah.my.id` tidak terindeks, `pinkponk.panduarah.my.id` punya OG image.
 
 ## 6. Pelaporan bug
 

@@ -4,7 +4,7 @@
 
 Game ping pong web dengan robot maskot neon: Vs AI, 2 pemain lokal, online 1v1, dan
 mode Timing Smash. Tema gelap/terang, 4 sudut kamera, tanpa database, berjalan di
-Cloudflare (`pinkponk.my.id`).
+Cloudflare (`pinkponk.panduarah.my.id`).
 
 ## Menjalankan
 
@@ -42,5 +42,5 @@ docs/               PRD, desain, arsitektur, QA, security, deploy, logo
 
 ## Branch
 
-- `development` — branch kerja, deploy otomatis ke `dev.pinkponk.my.id`
-- `production` — hanya lewat PR dari `development`, deploy ke `pinkponk.my.id`
+- `development` — branch kerja, deploy otomatis ke `pinkponk-dev.panduarah.my.id`
+- `production` — hanya lewat PR dari `development`, deploy ke `pinkponk.panduarah.my.id`

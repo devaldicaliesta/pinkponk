@@ -1,6 +1,6 @@
 # PRD — PinkPonk
 
-Status: v0.2 — MVP terimplementasi di branch `development` · Domain: `pinkponk.my.id`
+Status: v0.2 — MVP terimplementasi di branch `development` · Domain: `pinkponk.panduarah.my.id`
 
 ## 1. Ringkasan
 
@@ -34,7 +34,7 @@ berjalan di Cloudflare tanpa database.
 
 ## 5. Alur utama
 
-1. Buka `pinkponk.my.id` → layar judul.
+1. Buka `pinkponk.panduarah.my.id` → layar judul.
 2. Isi nickname saat pertama kali masuk (tersimpan di perangkat).
 3. Pilih mode → pilih opsi (tingkat AI, best of, POV) → hitung mundur 3-2-1.
 4. Bermain → layar hasil → Rematch / Menu / Bagikan kartu hasil.
@@ -111,7 +111,7 @@ Nilai di atas adalah angka awal untuk di-tuning lewat playtest.
 ### 7.2 Online 1v1
 
 - Room: kode acak 6 karakter dari 31 simbol (A–Z tanpa I, L, O + angka 2–9, supaya
-  tidak tertukar saat diketik) + link `pinkponk.my.id/r/KODE`.
+  tidak tertukar saat diketik) + link `pinkponk.panduarah.my.id/r/KODE`.
 - Server (Durable Object per room) menjalankan simulasi resmi; client mengirim input saja.
 - Client memakai prediksi untuk bat sendiri dan interpolasi untuk bola/lawan.
 - Indikator ping (hijau < 80 ms, kuning < 150 ms, merah ≥ 150 ms).
@@ -269,7 +269,7 @@ tanpa nickname atau IP. Ini data agregat untuk metrik, bukan database aplikasi.
 5. [x] **Lokal 2 pemain.**
 6. [x] **Online 1v1** (ayunan dan timing), jeda, sambung ulang.
 7. [x] **PWA, i18n, aksesibilitas dasar.**
-8. [ ] Deploy ke `dev.pinkponk.my.id` (menunggu domain + secret Cloudflare), playtest
+8. [ ] Deploy ke `pinkponk-dev.panduarah.my.id` (menunggu domain + secret Cloudflare), playtest
    di HP sungguhan, tuning angka (jendela timing, AI, fisika), lalu rilis produksi.
 9. [ ] v1.1 sesuai tabel §13 (reaksi emoji sudah ada di online).
 
@@ -278,7 +278,7 @@ tanpa nickname atau IP. Ini data agregat untuk metrik, bukan database aplikasi.
 | Tanggal | Keputusan |
 |---------|-----------|
 | 2026-10-21 | Satu Worker + Static Assets (bukan Pages + Worker terpisah) |
-| 2026-10-21 | Subdomain development: `dev.pinkponk.my.id` |
+| 2026-10-21 | Subdomain development: `pinkponk-dev.panduarah.my.id` |
 | 2026-10-21 | Lokal 2 pemain di MVP hanya untuk browser desktop; versi HP ke backlog |
 | 2026-10-21 | Audio hanya efek suara, tanpa musik latar |
 | 2026-10-21 | Logo dibuat sendiri: `docs/brand/` (lihat `DESIGN.md` §10) |

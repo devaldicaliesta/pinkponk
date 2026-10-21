@@ -8,7 +8,7 @@ Browser (HP/desktop)
   ├─ Renderer game (WebGL)         │  satu bundle Vite, game di-lazy-load
   ├─ Simulasi (TS murni)           │
   └─ Klien jaringan (WebSocket)    ┘
-          │  wss://pinkponk.my.id/ws/room/KODE
+          │  wss://pinkponk.panduarah.my.id/ws/room/KODE
           ▼
 Cloudflare Worker (satu Worker)
   ├─ Static Assets (hasil build frontend)
@@ -35,7 +35,7 @@ saat room kosong. Data pemain (nickname, pengaturan, statistik) ada di
   agar link `/r/KODE` membuka aplikasi.
 - Konsekuensi: Cloudflare tidak membuat preview URL untuk Worker yang memiliki
   Durable Object. Karena itu tidak ada deploy per PR; PR diuji dengan `wrangler dev`
-  di CI, dan `dev.pinkponk.my.id` berperan sebagai staging.
+  di CI, dan `pinkponk-dev.panduarah.my.id` berperan sebagai staging.
 - Alternatif Pages + Worker dipertimbangkan, ditolak karena menambah konfigurasi
   route dan dua pipeline deploy.
 
@@ -132,8 +132,8 @@ Setiap dependency baru di luar daftar ini wajib dijelaskan di PR.
 | Environment | Branch | URL |
 |-------------|--------|-----|
 | Lokal | — | `localhost:5173` (frontend), `wrangler dev` (worker) |
-| Development | `development` | `https://dev.pinkponk.my.id` |
-| Produksi | `production` | `https://pinkponk.my.id` |
+| Development | `development` | `https://pinkponk-dev.panduarah.my.id` |
+| Produksi | `production` | `https://pinkponk.panduarah.my.id` |
 | PR | PR ke `development` | tidak di-deploy; diuji dengan `wrangler dev` di CI |
 
 ## 6. Batas dan biaya Cloudflare (perkiraan)

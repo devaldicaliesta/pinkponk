@@ -7,8 +7,8 @@ declare const process: { env: Record<string, string | undefined> };
 type Site = "production" | "dev" | "local";
 
 const HOSTS: Record<Site, string | null> = {
-  production: "pinkponk.my.id",
-  dev: "dev.pinkponk.my.id",
+  production: "pinkponk.panduarah.my.id",
+  dev: "pinkponk-dev.panduarah.my.id",
   local: null,
 };
 
@@ -48,11 +48,11 @@ const headersFile = (site: Site): string => {
 
 const robots = (site: Site): string =>
   site === "production"
-    ? "User-agent: *\nAllow: /\nSitemap: https://pinkponk.my.id/sitemap.xml\n"
+    ? "User-agent: *\nAllow: /\nSitemap: https://pinkponk.panduarah.my.id/sitemap.xml\n"
     : "User-agent: *\nDisallow: /\n";
 
 const sitemap =
-  '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://pinkponk.my.id/</loc></url>\n</urlset>\n';
+  '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://pinkponk.panduarah.my.id/</loc></url>\n</urlset>\n';
 
 // Service worker kecil buatan sendiri (tanpa Workbox): aset ber-hash di-cache
 // permanen, halaman memakai network-first agar versi baru cepat terambil.

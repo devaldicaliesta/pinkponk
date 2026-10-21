@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 PinkPonk: game ping pong web (Vs AI, lokal 2 pemain, online 1v1, Timing Smash),
-tanpa database, di Cloudflare (`pinkponk.my.id`).
+tanpa database, di Cloudflare (`pinkponk.panduarah.my.id`).
 
 ## Baca dulu
 

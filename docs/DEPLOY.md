@@ -2,30 +2,40 @@
 
 ## 1. Langkah manual pemilik (sekali saja)
 
-1. Beli domain `pinkponk.my.id` di registrar Indonesia (verifikasi KTP mungkin diminta).
-2. Cloudflare → **Add a domain** → paket Free → catat 2 nameserver.
-3. Ganti nameserver di panel registrar → tunggu status zone **Active** (hingga 24 jam).
-4. SSL/TLS: mode **Full (strict)**, aktifkan **Always Use HTTPS**.
-5. DNS: tambah record TXT `v=spf1 -all` dan `_dmarc` → `v=DMARC1; p=reject`.
-6. DNSSEC: aktifkan, salin record DS ke registrar (jika registrar mendukung).
-7. Buat API Token (My Profile → API Tokens → Create Custom Token):
+Game dipasang di subdomain domain milik pemilik, `panduarah.my.id` (zone sudah aktif
+di Cloudflare). Domain utama dan subdomain lain tidak disentuh.
+
+| Situs | Alamat |
+|-------|--------|
+| Produksi | `pinkponk.panduarah.my.id` |
+| Dev | `pinkponk-dev.panduarah.my.id` |
+
+Subdomain dev sengaja satu tingkat (`pinkponk-dev.`), bukan `dev.pinkponk.`: sertifikat
+Universal SSL gratis hanya mencakup `*.panduarah.my.id` (satu tingkat).
+
+1. SSL/TLS zone `panduarah.my.id`: mode **Full (strict)**, aktifkan **Always Use HTTPS**.
+2. Buat API Token (My Profile → API Tokens → Create Custom Token):
    - Account → Workers Scripts: Edit
    - Account → Account Settings: Read
-   - Zone (hanya `pinkponk.my.id`) → Zone: Read, DNS: Edit, Workers Routes: Edit
+   - Zone (hanya `panduarah.my.id`) → Zone: Read, DNS: Edit, Workers Routes: Edit
    (Cloudflare Pages: Edit tidak dibutuhkan karena memakai Worker + Static Assets.)
-8. GitHub repo → Settings → Secrets and variables → Actions: `CLOUDFLARE_API_TOKEN`.
+3. GitHub repo → Settings → Secrets and variables → Actions: `CLOUDFLARE_API_TOKEN`.
    Account ID (`7629660f33279441e8cb1e786e2a56f7`) sudah tertulis di
    `worker/wrangler.jsonc` karena bukan rahasia.
-9. Buat branch `production` dari `development` (GitHub → Branches → New branch).
-10. GitHub → Settings → Branches: proteksi `production` (PR wajib, status check wajib,
-   tanpa force-push) dan `development` (status check wajib).
-11. GitHub → Settings → Environments: buat `development` dan `production` (opsional:
-    reviewer wajib untuk `production`). Secret boleh disimpan per environment.
-12. Cloudflare → Rules → Redirect Rules: `www.pinkponk.my.id/*` → `https://pinkponk.my.id/$1`
-    (301). Tambahkan juga record DNS `www` (proxied) agar aturan berlaku.
-13. Workers & Pages → Analytics Engine: pastikan fitur aktif untuk akun (dataset
-    `pinkponk_events` dibuat otomatis saat data pertama ditulis).
-14. Setelah situs stabil: aktifkan HSTS di Cloudflare.
+4. Analytics Engine: buat dataset `pinkponk_events_dev` dan `pinkponk_events`
+   (membuat dataset pertama sekaligus mengaktifkan fitur untuk akun).
+5. GitHub → Settings → Branches: proteksi `production` (PR wajib, status check wajib,
+   tanpa force-push).
+6. Opsional: Redirect Rule `www.pinkponk.panduarah.my.id/*` →
+   `https://pinkponk.panduarah.my.id/$1` (301) plus record DNS `www.pinkponk` (proxied).
+
+Pengaturan berikut berlaku untuk **seluruh** `panduarah.my.id`, jadi hanya dilakukan bila
+tidak mengganggu pemakaian domain yang lain:
+
+- SPF `v=spf1 -all` dan DMARC `p=reject` hanya bila domain **tidak** dipakai untuk email.
+- HSTS tingkat zone dengan `includeSubDomains` hanya bila semua subdomain sudah HTTPS.
+  (Worker sendiri sudah mengirim HSTS untuk subdomain PinkPonk.)
+- DNSSEC: aman diaktifkan; salin record DS ke registrar bila didukung.
 
 Deploy pertama terjadi otomatis saat ada push ke `development` setelah secret diisi.
 Tanpa secret, workflow Deploy melewati langkah deploy dengan pemberitahuan (tidak gagal).
@@ -35,12 +45,12 @@ Tanpa secret, workflow Deploy melewati langkah deploy dengan pemberitahuan (tida
 | Pemicu | Job |
 |--------|-----|
 | PR ke `development` | `pnpm check` + build (tanpa deploy: Cloudflare tidak membuat preview URL untuk Worker dengan Durable Object) |
-| Push ke `development` | `pnpm check` → build (`PP_SITE=dev`) → `wrangler deploy --env dev` → `dev.pinkponk.my.id` |
+| Push ke `development` | `pnpm check` → build (`PP_SITE=dev`) → `wrangler deploy --env dev` → `pinkponk-dev.panduarah.my.id` |
 | PR `development` → `production` | `pnpm check` + build + budget + dry-run + audit + E2E |
-| Push ke `production` | `pnpm check` → build (`PP_SITE=production`) → `wrangler deploy --env production` → `pinkponk.my.id` |
+| Push ke `production` | `pnpm check` → build (`PP_SITE=production`) → `wrangler deploy --env production` → `pinkponk.panduarah.my.id` |
 | Tiap malam (02.00 WIB) | E2E di `development` |
 
-Custom domain (`pinkponk.my.id`, `dev.pinkponk.my.id`) didefinisikan di
+Custom domain (`pinkponk.panduarah.my.id`, `pinkponk-dev.panduarah.my.id`) didefinisikan di
 `worker/wrangler.jsonc` (`routes` dengan `custom_domain: true`), bukan diklik manual.
 Build web memakai `PP_SITE=dev|production` untuk menulis `_headers`, `robots.txt`, dan
 `sitemap.xml` yang sesuai situsnya.

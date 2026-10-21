@@ -23,11 +23,11 @@
   },
   "env": {
     "dev": {
-      "routes": [{ "pattern": "dev.pinkponk.my.id", "custom_domain": true }],
+      "routes": [{ "pattern": "pinkponk-dev.panduarah.my.id", "custom_domain": true }],
       "durable_objects": {
         "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
       },
-      "vars": { "ALLOWED_ORIGINS": "https://dev.pinkponk.my.id" },
+      "vars": { "ALLOWED_ORIGINS": "https://pinkponk-dev.panduarah.my.id" },
       "ratelimits": [
         { "name": "RL_ROOM", "namespace_id": "2001", "simple": { "limit": 10, "period": 60 } },
         { "name": "RL_JOIN", "namespace_id": "2002", "simple": { "limit": 30, "period": 60 } },
@@ -36,11 +36,11 @@
       "analytics_engine_datasets": [{ "binding": "EVENTS", "dataset": "pinkponk_events_dev" }]
     },
     "production": {
-      "routes": [{ "pattern": "pinkponk.my.id", "custom_domain": true }],
+      "routes": [{ "pattern": "pinkponk.panduarah.my.id", "custom_domain": true }],
       "durable_objects": {
         "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
       },
-      "vars": { "ALLOWED_ORIGINS": "https://pinkponk.my.id" },
+      "vars": { "ALLOWED_ORIGINS": "https://pinkponk.panduarah.my.id" },
       "ratelimits": [
         { "name": "RL_ROOM", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
         { "name": "RL_JOIN", "namespace_id": "1002", "simple": { "limit": 30, "period": 60 } },
