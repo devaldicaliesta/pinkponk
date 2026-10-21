@@ -7,6 +7,7 @@ export interface TestHooks {
   viewMs(): number;
   tapNow(): void;
   fillStack(): void;
+  setPoints(a: number, b: number): void;
   view(): {
     phase: string;
     points: [number, number];

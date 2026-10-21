@@ -250,6 +250,9 @@ const GameView = ({ session, onExit }: Props) => {
         crossing: () => (session.you === null ? null : session.crossing(session.you)),
         viewMs: () => session.viewMs(),
         tapNow: () => session.injectTap?.(performance.now()),
+        setPoints: (a: number, b: number) => {
+          if (session instanceof LocalSession) session.match.score.points = [a, b];
+        },
         fillStack: () => {
           if (session instanceof LocalSession) session.match.players[0].gamble.stack = STACK_MAX;
         },

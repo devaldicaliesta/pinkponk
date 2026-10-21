@@ -59,3 +59,17 @@ test("Jeda menghentikan simulasi @mobile", async ({ open }) => {
   await page.waitForTimeout(300);
   expect(await page.evaluate(() => window.__pp.view().tick)).toBeGreaterThan(t1);
 });
+
+test("Match point tampil di atas, tidak menutupi tengah layar @mobile", async ({ open }) => {
+  const { page, errors } = await open();
+  await startAiGame(page, "ai");
+  await waitForPhase(page, "serve");
+  await page.evaluate(() => window.__pp.setPoints(10, 5));
+  const badge = page.getByTestId("badge");
+  await expect(badge).toHaveText(/match point/i);
+  const box = await badge.boundingBox();
+  const viewport = page.viewportSize();
+  // Label berada di bagian atas layar (di area skor), bukan di tengah meja.
+  expect(box!.y + box!.height).toBeLessThan(viewport!.height * 0.25);
+  expect(errors).toEqual([]);
+});

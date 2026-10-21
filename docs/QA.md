@@ -58,8 +58,9 @@ jalan di setiap PR ke `production` dan setiap malam di `development`.
 | G4 | Cari lawan acak: dua pemain dipasangkan ke pertandingan gamble yang sama | |
 | G5 | Cari lawan acak bisa dibatalkan | |
 | G6 | Gamble dengan gaya Timing Smash: roulette lalu tap dinilai | Juga di viewport HP |
+| H1 | Label match point di bagian atas layar, tidak menutupi tengah | Juga di viewport HP |
 
-Status: 27 test E2E lulus (proyek `desktop` semua test, `mobile` test bertanda
+Status: 29 test E2E lulus (proyek `desktop` semua test, `mobile` test bertanda
 `@mobile`). Browser di CI: Chromium dengan WebGL perangkat lunak (SwiftShader);
 WebKit/Firefox ditambahkan setelah deploy pertama. Uji visual (screenshot) tema
 gelap/terang dilakukan manual; otomatisasi = tindak lanjut.

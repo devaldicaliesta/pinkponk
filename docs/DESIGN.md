@@ -141,6 +141,12 @@ glow diganti bayangan tipis + garis luar 2 px.
   di titik pantul meja, skor "membal" saat bertambah. Semua dimatikan bila
   `prefers-reduced-motion`.
 
+## 7b. Penempatan teks HUD
+
+- Status yang bertahan lama (Deuce, Game point, Match point, FEVER!) berupa label kecil
+  di atas, di bawah tombol kamera/jeda, agar tidak menutupi meja dan bola.
+- Hanya teks sesaat (hitung mundur, alasan poin, roulette) yang boleh muncul di tengah.
+
 ## 7a. HUD mode Gamble dan layar peringkat
 
 - **Meter stack**: 6 kotak kecil (pip) di kiri bawah bersama tombol **GAMBLE**. Pip

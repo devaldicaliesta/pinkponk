@@ -142,6 +142,13 @@ export const Hud = ({
               </button>
             )}
           </div>
+          {/* Status yang bertahan lama (match point, fever) di atas, bukan di tengah meja. */}
+          {state.badge && (
+            <div key={state.badge} class="hud__badge" data-testid="badge">
+              {t(`game.${state.badge}`)}
+            </div>
+          )}
+          {state.fever && <div class="fever">{t("game.fever")}</div>}
         </div>
         <div class="hud__right">
           <ScoreCard
@@ -162,8 +169,6 @@ export const Hud = ({
             {state.countdown === 0 ? t("game.go") : state.countdown}
           </div>
         )}
-        {state.badge && <div class="hud__badge">{t(`game.${state.badge}`)}</div>}
-        {state.fever && <div class="fever">{t("game.fever")}</div>}
         {state.toast && (
           <div key={state.toast.key} class="hud__toast" data-testid="point-reason">
             {t(`game.reason.${state.toast.reason}`)}
