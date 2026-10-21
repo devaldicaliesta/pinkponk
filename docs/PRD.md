@@ -101,7 +101,7 @@ peringkat online (ID hash, nickname, rating, menang/kalah).
 | 2 | **Lokal 2 pemain** | Satu perangkat, di browser desktop: keyboard dibagi (WASD vs panah). Versi layar sentuh HP/tablet ada di backlog. | MVP |
 | 3 | **Online 1v1** | Buat room → kode 6 karakter + link. Server-authoritative di Durable Object. | MVP |
 | 4 | **Timing Smash** | Hanya klik/tap; hasil pukulan ditentukan ketepatan timing (lihat §8). Vs AI dan online. | MVP |
-| 5 | **Gamble** | Mode ayunan + stack dan roulette kemampuan (§7.3). Vs AI dan online. | v0.3 |
+| 5 | **Gamble** | Ayunan atau Timing Smash + stack dan roulette kemampuan (§7.3). Vs AI dan online. | v0.3 |
 
 ### 7.1 Tingkat AI
 
@@ -143,6 +143,12 @@ Nilai di atas adalah angka awal untuk di-tuning lewat playtest.
 - Stack penuh → tombol **GAMBLE** (atau `E`/`Q`, gamepad Y) memutar roulette. Hasil
   diputuskan simulasi (server saat online), jadi tidak bisa dicurangi dari client.
 - Kemampuan berlaku 1–2 poin berikutnya. Ditekan saat reli: aktif mulai poin berikutnya.
+- Gaya main bisa **Ayunan** atau **Timing Smash** (vs AI: pilihan "Gaya main" di layar
+  atur; online: pilihan Mode + Mode Gamble di lobby/antrean). Di Timing Smash bat bergerak
+  sendiri, jadi Bat Raksasa/JACKPOT melebarkan semua jendela timing ×1,5, Magnet ×1,25,
+  Sial! menyempitkan ×0,65, dan Bekukan menyempitkan jendela lawan ×0,75; Perisai
+  menyelamatkan satu MISS; Bola Kilat mempercepat pukulan; Bola Hantu membuat tap AI
+  lebih meleset.
 
 | Kemampuan | Efek | Peluang |
 |-----------|------|---------|

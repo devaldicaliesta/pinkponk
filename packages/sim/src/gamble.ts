@@ -88,6 +88,8 @@ export interface Mods {
   sigma: number;
   pointValue: number;
   shield: boolean;
+  /** Pengali lebar jendela timing (mode Timing Smash, bat bergerak sendiri). */
+  timingWindow: number;
 }
 
 export const NO_MODS: Readonly<Mods> = Object.freeze({
@@ -97,6 +99,7 @@ export const NO_MODS: Readonly<Mods> = Object.freeze({
   sigma: 1,
   pointValue: 1,
   shield: false,
+  timingWindow: 1,
 });
 
 export const modsFor = (mine: GambleState, theirs: GambleState): Mods => {
@@ -104,6 +107,7 @@ export const modsFor = (mine: GambleState, theirs: GambleState): Mods => {
   switch (mine.ability) {
     case "giant":
       m.reach = 1.6;
+      m.timingWindow = 1.5;
       break;
     case "turbo":
       m.shotSpeed = 1.25;
@@ -117,19 +121,25 @@ export const modsFor = (mine: GambleState, theirs: GambleState): Mods => {
     case "magnet":
       m.batSpeed = 1.6;
       m.sigma = 0.6;
+      m.timingWindow = 1.25;
       break;
     case "jinx":
       m.reach = 0.65;
       m.sigma = 1.4;
+      m.timingWindow = 0.65;
       break;
     case "jackpot":
       m.reach = 1.6;
       m.pointValue = 2;
+      m.timingWindow = 1.5;
       break;
     default:
       break;
   }
-  if (theirs.ability === "freeze") m.batSpeed *= 0.55;
+  if (theirs.ability === "freeze") {
+    m.batSpeed *= 0.55;
+    m.timingWindow *= 0.75;
+  }
   return m;
 };
 

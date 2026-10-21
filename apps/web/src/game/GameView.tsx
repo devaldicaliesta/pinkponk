@@ -337,6 +337,7 @@ const GameView = ({ session, onExit }: Props) => {
         onCamera={cyclePov}
         onEmoji={session instanceof OnlineSession ? (e) => session.sendEmoji(e) : undefined}
         gamble={session.gamble}
+        timing={session.mode === "timing"}
         reducedMotion={reducedRef.current}
         onAbility={() => session.pressAbility()}
       />

@@ -56,7 +56,7 @@ export const App = () => {
       mode === "local"
         ? module.createLocalSession(bestOf, ["P1", "P2"])
         : module.createAiSession(
-            mode === "timing" ? "timing" : "swing",
+            mode === "timing" || (mode === "gamble" && r.style === "timing") ? "timing" : "swing",
             bestOf,
             difficulty,
             [nick, "AI"],

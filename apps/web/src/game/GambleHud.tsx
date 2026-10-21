@@ -64,14 +64,23 @@ export const OpponentGamble = ({ g }: { g: GambleView }) => (
 );
 
 /** Roulette berputar sebentar lalu menampilkan kemampuan yang didapat. */
+// Di Timing Smash bat bergerak sendiri, jadi efek jangkauan/kecepatan bat diganti lebar
+// jendela timing; deskripsinya pun berbeda.
+const TIMING_DESC = ["giant", "magnet", "freeze", "jinx", "jackpot"] as const;
+type TimingDescAbility = (typeof TIMING_DESC)[number];
+const hasTimingDesc = (a: Ability): a is TimingDescAbility =>
+  (TIMING_DESC as readonly Ability[]).includes(a);
+
 export const Roulette = ({
   info,
   you,
   reduced,
+  timing,
 }: {
   info: RouletteInfo;
   you: Side | null;
   reduced: boolean;
+  timing: boolean;
 }) => {
   const t = useT();
   const [spin, setSpin] = useState<{ name: Ability; landed: boolean }>({
@@ -117,7 +126,10 @@ export const Roulette = ({
       <span class="roulette__name">{t(`ability.${ability}`)}</span>
       {landed && (
         <span class="roulette__desc">
-          {t(`ability.${info.ability}.desc`)} · {t("gamble.points", { n: info.points })}
+          {timing && hasTimingDesc(info.ability)
+            ? t(`ability.${info.ability}.descTiming`)
+            : t(`ability.${info.ability}.desc`)}{" "}
+          · {t("gamble.points", { n: info.points })}
         </span>
       )}
     </div>

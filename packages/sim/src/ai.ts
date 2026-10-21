@@ -137,7 +137,8 @@ export class AiController {
   private tapSigma(m: Match): number {
     const hits = m.rally?.hits ?? 0;
     const speed = Math.hypot(m.ball.vel.x, m.ball.vel.z);
-    return this.profile.tapSigmaMs * (1 + 0.06 * hits) * (speed > 11 ? 1.8 : 1);
+    const ghost = m.config.gamble && m.players[other(this.side)].gamble.ability === "ghost";
+    return this.profile.tapSigmaMs * (1 + 0.06 * hits) * (speed > 11 ? 1.8 : 1) * (ghost ? 1.8 : 1);
   }
 
   private newPlan(m: Match): void {

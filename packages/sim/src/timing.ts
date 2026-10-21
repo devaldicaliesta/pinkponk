@@ -13,10 +13,13 @@ export const RALLY_SPEEDUP_PER_HIT = 0.02;
 export const RALLY_SPEEDUP_MAX = 0.25;
 export const EDGE_FAIL_CHANCE = 0.4;
 
-/** Nilai tap berdasarkan selisih (ms) terhadap waktu ideal; negatif = terlalu awal. */
-export const gradeTiming = (deltaMs: number | null): TimingGrade => {
+/**
+ * Nilai tap berdasarkan selisih (ms) terhadap waktu ideal; negatif = terlalu awal.
+ * `windowScale` melebarkan (>1) atau menyempitkan (<1) semua jendela, dipakai kemampuan Gamble.
+ */
+export const gradeTiming = (deltaMs: number | null, windowScale = 1): TimingGrade => {
   if (deltaMs === null) return "miss";
-  const d = Math.abs(deltaMs);
+  const d = Math.abs(deltaMs) / windowScale;
   if (d <= TIMING_WINDOWS_MS.perfect) return "perfect";
   if (d <= TIMING_WINDOWS_MS.great) return "great";
   if (d <= TIMING_WINDOWS_MS.good) return "good";

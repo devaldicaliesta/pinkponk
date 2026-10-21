@@ -336,10 +336,12 @@ export class Match {
     const slot = this.players[pending.player];
     const idealMs = pending.tick * MS_PER_TICK;
     const tap = slot.taps.find((t) => t >= slot.armMs);
-    const windowEnd = idealMs + TIMING_WINDOWS_MS.edge;
+    const scale = this.mods(pending.player).timingWindow;
+    const edgeMs = TIMING_WINDOWS_MS.edge * scale;
+    const windowEnd = idealMs + edgeMs;
     if (tap === undefined || tap > windowEnd) {
       const seenTick = slot.latest.viewTick;
-      const windowTicks = Math.ceil(TIMING_WINDOWS_MS.edge / MS_PER_TICK);
+      const windowTicks = Math.ceil(edgeMs / MS_PER_TICK);
       const playerSawWindow = seenTick >= pending.tick + windowTicks;
       const deadline = pending.tick + windowTicks + MAX_LAG_TICKS;
       if (playerSawWindow || this.tick >= deadline) {
@@ -347,7 +349,7 @@ export class Match {
       }
       return;
     }
-    const grade = gradeTiming(tap - idealMs);
+    const grade = gradeTiming(tap - idealMs, scale);
     slot.taps = [];
     if (grade === "miss") {
       if (!this.shieldSave(pending)) this.missPending(pending, "miss");

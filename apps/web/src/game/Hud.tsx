@@ -30,6 +30,7 @@ interface Props {
   onCamera(): void;
   onEmoji?: (e: number) => void;
   gamble: boolean;
+  timing: boolean;
   reducedMotion: boolean;
   onAbility(): void;
 }
@@ -87,6 +88,7 @@ export const Hud = ({
   onCamera,
   onEmoji,
   gamble,
+  timing,
   reducedMotion,
   onAbility,
 }: Props) => {
@@ -173,6 +175,7 @@ export const Hud = ({
             info={state.roulette}
             you={you}
             reduced={reducedMotion}
+            timing={timing}
           />
         )}
         {state.shield && (

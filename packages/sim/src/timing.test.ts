@@ -29,4 +29,12 @@ describe("penilaian timing", () => {
     expect(rallySpeedFactor(5)).toBeCloseTo(1.1);
     expect(rallySpeedFactor(100)).toBeCloseTo(1.25);
   });
+
+  it("jendela timing bisa dilebarkan atau disempitkan (kemampuan Gamble)", () => {
+    expect(gradeTiming(120)).toBe("good");
+    expect(gradeTiming(120, 1.5)).toBe("great");
+    expect(gradeTiming(60, 0.65)).toBe("great");
+    expect(gradeTiming(300, 1.5)).toBe("late");
+    expect(gradeTiming(300)).toBe("miss");
+  });
 });

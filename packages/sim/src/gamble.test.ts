@@ -182,3 +182,66 @@ describe("gamble dan AI", () => {
     expect(misses(true)).toBeGreaterThan(misses(false));
   }, 20_000);
 });
+
+describe("gamble di mode Timing Smash", () => {
+  it("bat raksasa melebarkan jendela timing, sial dan bekukan lawan menyempitkannya", () => {
+    const me = createGamble();
+    const them = createGamble();
+    me.ability = "giant";
+    expect(modsFor(me, them).timingWindow).toBeGreaterThan(1);
+    me.ability = "jinx";
+    expect(modsFor(me, them).timingWindow).toBeLessThan(1);
+    me.ability = null;
+    them.ability = "freeze";
+    expect(modsFor(me, them).timingWindow).toBeLessThan(1);
+  });
+
+  it("tap 140 ms terlambat: GOOD biasanya, GREAT dengan bat raksasa", () => {
+    const judgeAt = (giant: boolean) => {
+      const m = new Match({
+        mode: "timing",
+        bestOf: 1,
+        seed: 3,
+        skipCountdown: true,
+        firstServer: 1,
+        gamble: true,
+      });
+      if (giant) {
+        m.players[0].gamble.ability = "giant";
+        m.players[0].gamble.pointsLeft = 3;
+      }
+      m.pushInput(1, { ...emptyInput(0), serve: true });
+      let ideal: number | null = null;
+      for (let i = 0; i < 900 && ideal === null; i++) {
+        m.pushInput(0, emptyInput(m.tick));
+        m.step();
+        if (m.phase === "rally") ideal = m.upcomingCrossing(0)?.tick ?? null;
+      }
+      const tapMs = ((ideal as number) * 1000) / 120 + 140;
+      const grades: string[] = [];
+      for (let i = 0; i < 400 && grades.length === 0; i++) {
+        const tap = m.nowMs >= tapMs && m.nowMs < tapMs + 9 ? tapMs : null;
+        m.pushInput(0, { ...emptyInput(m.tick), tapMs: tap });
+        m.step();
+        for (const e of m.events) if (e.type === "judge" && e.player === 0) grades.push(e.grade);
+      }
+      return grades[0];
+    };
+    expect(judgeAt(false)).toBe("good");
+    expect(judgeAt(true)).toBe("great");
+  });
+
+  it("AI vs AI Timing Smash mode gamble selesai dan memakai kemampuan", () => {
+    const m = new Match({ mode: "timing", bestOf: 1, seed: 77, skipCountdown: true, gamble: true });
+    const ai = [new AiController(0, "medium", 78), new AiController(1, "hard", 79)];
+    let abilities = 0;
+    for (let i = 0; i < 120 * 60 * 20 && m.phase !== "over"; i++) {
+      m.pushInput(0, ai[0]!.input(m));
+      m.pushInput(1, ai[1]!.input(m));
+      m.step();
+      abilities += m.events.filter((e) => e.type === "ability").length;
+    }
+    expect(m.phase).toBe("over");
+    expect(abilities).toBeGreaterThan(0);
+  }, 20_000);
+});

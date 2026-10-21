@@ -1,4 +1,4 @@
-import { expect, startAiGame, test, waitForPhase } from "./helpers";
+import { expect, startAiGame, tapAt, test, waitForPhase } from "./helpers";
 
 test("Gamble: stack penuh → tombol GAMBLE → roulette → kemampuan aktif @mobile", async ({
   open,
@@ -82,5 +82,26 @@ test("Cari lawan acak bisa dibatalkan", async ({ open }) => {
   await expect(page.getByTestId("searching")).toBeVisible();
   await page.getByRole("button", { name: "Batal" }).click();
   await expect(page.getByTestId("quick-match")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("Gamble dengan gaya Timing Smash: roulette lalu tap dinilai @mobile", async ({ open }) => {
+  const { page, errors } = await open();
+  await page.goto("/");
+  await page.getByTestId("mode-gamble").click();
+  await page.getByRole("button", { name: "Timing Smash", exact: true }).click();
+  await page.getByRole("button", { name: "Mudah", exact: true }).click();
+  await page.getByRole("button", { name: "Best of 1" }).click();
+  await page.getByTestId("start").click();
+  await page.getByTestId("game-canvas").waitFor();
+  await page.waitForFunction(() => typeof window.__pp?.view === "function");
+  await expect(page.getByTestId("gamble-bar")).toBeVisible();
+  await waitForPhase(page, "serve");
+  await page.evaluate(() => window.__pp.fillStack());
+  await page.getByTestId("gamble-button").click();
+  await expect(page.getByTestId("roulette")).toBeVisible();
+  // Mode timing: tap tepat waktu menghasilkan penilaian (hanya ada di Timing Smash).
+  await tapAt(page, 0);
+  await expect(page.getByTestId("judge")).toBeVisible();
   expect(errors).toEqual([]);
 });

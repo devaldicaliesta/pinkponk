@@ -33,6 +33,8 @@ jalan di setiap PR ke `production` dan setiap malam di `development`.
   habis tepat waktu, poin ganda tidak melewati akhir game, perisai menyelamatkan sekali,
   tombol diabaikan di mode biasa, AI vs AI gamble deterministik, bola hantu menyulitkan AI.
 - Golden point di 14–14.
+- Gamble di Timing Smash: jendela timing melebar/menyempit sesuai kemampuan, tap 140 ms
+  terlambat GOOD biasa → GREAT dengan Bat Raksasa, AI vs AI timing gamble selesai.
 
 ## 3. Skenario E2E (Playwright)
 
@@ -55,8 +57,9 @@ jalan di setiap PR ke `production` dan setiap malam di `development`.
 | G3 | Peringkat: tab Global dan Pribadi | Server lokal boleh kosong |
 | G4 | Cari lawan acak: dua pemain dipasangkan ke pertandingan gamble yang sama | |
 | G5 | Cari lawan acak bisa dibatalkan | |
+| G6 | Gamble dengan gaya Timing Smash: roulette lalu tap dinilai | Juga di viewport HP |
 
-Status: 25 test E2E lulus (proyek `desktop` semua test, `mobile` test bertanda
+Status: 27 test E2E lulus (proyek `desktop` semua test, `mobile` test bertanda
 `@mobile`). Browser di CI: Chromium dengan WebGL perangkat lunak (SwiftShader);
 WebKit/Firefox ditambahkan setelah deploy pertama. Uji visual (screenshot) tema
 gelap/terang dilakukan manual; otomatisasi = tindak lanjut.
