@@ -10,5 +10,6 @@
   },
   "dependencies": {
     "@pinkponk/sim": "workspace:*"
-  }
+  },
+  "sideEffects": false
 }

@@ -453,13 +453,14 @@ export class Match {
     const r = this.rally;
     if (this.phase !== "rally" || !r) return null;
     if (this.pending?.player === p) {
-      return { tick: this.pending.tick, x: this.pending.ball.pos.x, y: this.pending.ball.pos.y };
+      const b = this.pending.ball.pos;
+      return { tick: this.pending.tick, x: b.x, y: b.y, z: b.z };
     }
     const awaiting = r.phase === "await-return" && r.expected === p;
     const incoming = r.phase !== "await-return" && r.lastHitter !== p;
     if (!awaiting && !incoming) return null;
     const c = predictCrossing(this.ball, p, awaiting);
-    return c ? { tick: this.tick + c.ticks, x: c.x, y: c.y } : null;
+    return c ? { tick: this.tick + c.ticks, x: c.x, y: c.y, z: c.z } : null;
   }
 
   /** Posisi z titik pukul pemain, untuk penempatan bat di renderer. */

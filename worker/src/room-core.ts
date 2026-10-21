@@ -88,11 +88,20 @@ export class RoomCore {
   message(conn: Conn, data: string | ArrayBuffer): void {
     const size = typeof data === "string" ? data.length : data.byteLength;
     const bucket = this.buckets.get(conn.id);
-    if (!bucket?.take(this.deps.now())) return this.reject(conn, "rate-limited");
-    if (size > MAX_CLIENT_MESSAGE) return this.reject(conn, "bad-message");
+    if (!bucket?.take(this.deps.now())) {
+      this.reject(conn, "rate-limited");
+      return;
+    }
+    if (size > MAX_CLIENT_MESSAGE) {
+      this.reject(conn, "bad-message");
+      return;
+    }
     if (typeof data === "string") {
       const msg = parseClientControl(data);
-      if (!msg) return this.reject(conn, "bad-message");
+      if (!msg) {
+        this.reject(conn, "bad-message");
+        return;
+      }
       this.control(conn, msg);
       return;
     }
@@ -100,13 +109,19 @@ export class RoomCore {
     switch (messageType(data)) {
       case MSG_PING: {
         const clientMs = decodePing(data);
-        if (clientMs === null) return this.reject(conn, "bad-message");
+        if (clientMs === null) {
+          this.reject(conn, "bad-message");
+          return;
+        }
         conn.send(encodePong(clientMs, this.serverMs()));
         return;
       }
       case MSG_INPUT: {
         const input = decodeInput(data);
-        if (!input) return this.reject(conn, "bad-message");
+        if (!input) {
+          this.reject(conn, "bad-message");
+          return;
+        }
         if (seat !== undefined && this.match && this.status === "playing") {
           this.match.pushInput(seat, input);
         }
@@ -184,21 +199,34 @@ export class RoomCore {
 
   private hello(conn: Conn, msg: Extract<ClientControl, { t: "hello" }>): void {
     const nick = validateNickname(msg.nick);
-    if (!nick.ok) return this.reject(conn, "bad-nickname");
+    if (!nick.ok) {
+      this.reject(conn, "bad-nickname");
+      return;
+    }
 
     // Sambung ulang ke kursi yang sama memakai token dari pesan welcome.
     const resumed = this.seats.findIndex(
       (s) => s !== null && s.conn === null && msg.token !== null && s.token === msg.token,
     );
-    if (resumed === 0 || resumed === 1) return this.resume(conn, resumed);
+    if (resumed === 0 || resumed === 1) {
+      this.resume(conn, resumed);
+      return;
+    }
 
     if (!this.exists) {
-      if (!msg.create) return this.reject(conn, "not-found");
+      if (!msg.create) {
+        this.reject(conn, "not-found");
+        return;
+      }
       this.config = msg.config;
-      return this.seat(conn, 0, nick.value);
+      this.seat(conn, 0, nick.value);
+      return;
     }
-    const free = this.seats.findIndex((s) => s === null);
-    if ((free !== 0 && free !== 1) || this.status !== "lobby") return this.reject(conn, "full");
+    const free = this.seats.indexOf(null);
+    if ((free !== 0 && free !== 1) || this.status !== "lobby") {
+      this.reject(conn, "full");
+      return;
+    }
     const taken = this.seats.filter((s): s is Seat => s !== null).map((s) => s.nick);
     this.seat(conn, free, dedupeNickname(nick.value, taken));
     if (this.seats[0]?.conn && this.seats[1]?.conn) this.startMatch();

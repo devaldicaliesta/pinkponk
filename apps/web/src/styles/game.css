@@ -1,0 +1,316 @@
+.game {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.game__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: max(var(--s3), env(safe-area-inset-top)) max(var(--s3), env(safe-area-inset-right))
+    max(var(--s3), env(safe-area-inset-bottom)) max(var(--s3), env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+}
+
+.hud__top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s2);
+}
+
+.hud__top > .score:first-child {
+  justify-self: start;
+}
+
+.hud__top > .score:last-child {
+  justify-self: end;
+}
+
+.hud__mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.hud__btns {
+  display: flex;
+  gap: var(--s2);
+  pointer-events: auto;
+}
+
+.score {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  min-width: 0;
+}
+
+.score__name {
+  font-size: 13px;
+  font-weight: 700;
+  max-width: 8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score__games {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.score__game {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-muted);
+}
+
+.score__game--won {
+  background: var(--lime);
+  border-color: var(--lime);
+}
+
+.score__points {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.2em;
+  text-align: center;
+}
+
+.score__serve {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pink);
+  box-shadow: var(--glow-sm);
+}
+
+.score__serve--off {
+  visibility: hidden;
+}
+
+.score--you .score__points {
+  color: var(--pink);
+  text-shadow: var(--glow-sm);
+}
+
+.hud__center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  text-align: center;
+}
+
+.hud__countdown {
+  font-family: var(--font-display);
+  font-size: 120px;
+  line-height: 1;
+  color: var(--pink);
+  text-shadow: var(--glow-md);
+  animation: pop 300ms var(--ease);
+}
+
+.hud__badge {
+  padding: var(--s1) var(--s4);
+  border-radius: 999px;
+  font-weight: 700;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+}
+
+.hud__toast {
+  font-family: var(--font-display);
+  font-size: 32px;
+  text-transform: uppercase;
+  animation: pop 200ms var(--ease);
+}
+
+.judge {
+  font-family: var(--font-display);
+  font-size: 56px;
+  line-height: 1;
+  text-transform: uppercase;
+  animation: judge 420ms var(--ease) both;
+}
+
+.judge--perfect {
+  color: var(--lime-text);
+  text-shadow: 0 0 14px var(--lime);
+}
+
+.judge--great {
+  color: var(--pink);
+}
+
+.judge--good {
+  color: var(--cyan);
+}
+
+.judge--early,
+.judge--late {
+  color: var(--text-muted);
+}
+
+.judge--miss {
+  color: var(--danger);
+}
+
+/* Mode buta warna: nilai timing juga dibedakan dengan bentuk penanda. */
+:root[data-colorblind="on"] .judge--perfect::before {
+  content: "★ ";
+}
+
+:root[data-colorblind="on"] .judge--great::before {
+  content: "● ";
+}
+
+:root[data-colorblind="on"] .judge--good::before {
+  content: "▲ ";
+}
+
+:root[data-colorblind="on"] .judge--miss::before {
+  content: "✕ ";
+}
+
+.fever {
+  font-family: var(--font-display);
+  font-size: 40px;
+  color: var(--lime-text);
+  text-shadow: 0 0 18px var(--lime);
+  letter-spacing: 0.08em;
+}
+
+.hud__bottom {
+  text-align: center;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.hud__hint {
+  font-size: 14px;
+  padding: var(--s2) var(--s4);
+  max-width: 34em;
+}
+
+.ping {
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--s1) var(--s3);
+}
+
+.ping__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s4);
+  background: rgb(11 7 16 / 0.55);
+  pointer-events: auto;
+  z-index: 20;
+}
+
+.overlay__panel {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--s5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  text-align: center;
+}
+
+.result__title {
+  font-size: 56px;
+  margin: 0;
+}
+
+.result__score {
+  font-family: var(--font-display);
+  font-size: 40px;
+}
+
+.emoji-bar {
+  display: flex;
+  gap: var(--s1);
+  pointer-events: auto;
+}
+
+.emoji-float {
+  font-size: 40px;
+  animation: judge 1200ms var(--ease) both;
+}
+
+@media (max-width: 420px) {
+  .score__name {
+    max-width: 4.5em;
+  }
+
+  .score__points {
+    font-size: 36px;
+  }
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes judge {
+  0% {
+    transform: translateY(12px) scale(0.8);
+    opacity: 0;
+  }
+  25% {
+    transform: translateY(0) scale(1.05);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+}

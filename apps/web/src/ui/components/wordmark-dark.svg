@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1154 320" role="img" aria-label="PinkPonk">
+  <defs><filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+    <feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+  <rect width="1154" height="320" rx="48" fill="#0B0710"/>
+  <g transform="translate(30 30) scale(0.5)">
+  <g stroke="#111" stroke-width="16">
+    <rect x="148" y="190" width="72" height="230" rx="36"/><circle cx="276" cy="210" r="118"/></g>
+  <g fill="#FF2E9A" filter="url(#glow)"><rect x="148" y="190" width="72" height="230" rx="36"/><circle cx="276" cy="210" r="118"/></g>
+  <circle cx="276" cy="210" r="44" fill="#C6FF3D" stroke="#111" stroke-width="8"/>
+  <path d="M352 96c40-14 74-6 92 18M374 70c34-6 58 4 70 22" fill="none" stroke="#C6FF3D" stroke-width="12" stroke-linecap="round"/>
+  </g>
+  <g fill="none" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M330 235V85h26.0a34.0 37 0 0 1 0 74H330 M440 85V235 M486 235V85L546 235V85 M592 85V235M652 85L592 165M610 148L652 235" stroke="#FF2E9A" filter="url(#glow)"/>
+    <path d="M698 235V85h26.0a34.0 37 0 0 1 0 74H698 M838.0 85a30.0 30.0 0 0 1 30.0 30.0v90a30.0 30.0 0 0 1 -60 0v-90a30.0 30.0 0 0 1 30.0-30.0z M914 235V85L974 235V85 M1020 85V235M1080 85L1020 165M1038 148L1080 235" stroke="#F7F0FA"/>
+  </g>
+</svg>

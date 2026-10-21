@@ -1,0 +1,25 @@
+{
+  "name": "@pinkponk/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:e2e": "vite build --mode e2e",
+    "preview": "vite preview",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@pinkponk/protocol": "workspace:*",
+    "@pinkponk/sim": "workspace:*",
+    "preact": "10.29.8",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@fontsource/anton": "5.2.6",
+    "@fontsource/inter": "5.2.6",
+    "@preact/preset-vite": "2.10.6",
+    "@types/three": "0.180.0",
+    "vite": "7.3.6"
+  }
+}

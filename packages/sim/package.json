@@ -7,5 +7,6 @@
   },
   "scripts": {
     "typecheck": "tsc -p ."
-  }
+  },
+  "sideEffects": false
 }
