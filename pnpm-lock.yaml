@@ -33,8 +33,8 @@ importers:
         specifier: 10.29.8
         version: 10.29.8
       three:
-        specifier: 0.180.0
-        version: 0.180.0
+        specifier: 0.186.1
+        version: 0.186.1
     devDependencies:
       '@fontsource/anton':
         specifier: 5.2.6
@@ -1348,8 +1348,8 @@ packages:
     resolution: {integrity: sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g==}
     engines: {node: '>=18'}
 
-  three@0.180.0:
-    resolution: {integrity: sha512-o+qycAMZrh+TsE01GqWUxUIKR1AL0S8pq7zDkYOQw8GqfX8b8VoCKYUoHbhiX5j+7hr8XsuHDVU6+gkQJQKg9w==}
+  three@0.186.1:
+    resolution: {integrity: sha512-blFeqb49wRCSGUGj7gtpfnSGHy2lwDk94RhUmS1c/hTby70kvChbWpkJ4Pm1390LqzzvTmzgXKHPEafJwCb8jA==}
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -2609,7 +2609,7 @@ snapshots:
 
   supports-color@10.2.2: {}
 
-  three@0.180.0: {}
+  three@0.186.1: {}
 
   tinybench@2.9.0: {}
 

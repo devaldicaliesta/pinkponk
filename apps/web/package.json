@@ -13,7 +13,7 @@
     "@pinkponk/protocol": "workspace:*",
     "@pinkponk/sim": "workspace:*",
     "preact": "10.29.8",
-    "three": "0.180.0"
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@fontsource/anton": "5.2.6",
