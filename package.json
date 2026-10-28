@@ -22,9 +22,9 @@
     "deploy:production": "pnpm --filter @pinkponk/worker run deploy:production"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.2.7",
-    "@playwright/test": "1.56.1",
+    "@biomejs/biome": "2.6.3",
+    "@playwright/test": "1.64.1",
     "typescript": "5.9.3",
-    "vitest": "3.2.4"
+    "vitest": "3.2.7"
   }
 }
